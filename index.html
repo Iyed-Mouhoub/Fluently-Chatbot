@@ -28,7 +28,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
         }
 
         .header-left {
@@ -50,35 +50,24 @@
             font-weight: bold;
         }
 
-        .header h1 {
-            font-size: 20px;
+        .header-title {
+            font-size: 18px;
             font-weight: 600;
             color: #1f2937;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #6b7280;
         }
 
         .status-indicator {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .status-indicator.connected {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .status-indicator.disconnected {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .status-indicator.connecting {
-            background: #fef3c7;
-            color: #92400e;
+            gap: 6px;
         }
 
         .status-dot {
@@ -86,6 +75,14 @@
             height: 8px;
             border-radius: 50%;
             background: currentColor;
+        }
+
+        .accent-blue {
+            color: #1e40af;
+        }
+
+        .accent-red {
+            color: #dc2626;
         }
 
         /* Main Chat Area */
@@ -100,27 +97,28 @@
             flex: 1;
             overflow-y: auto;
             padding: 0;
+            scroll-behavior: smooth;
         }
 
         .messages-list {
             max-width: 768px;
             margin: 0 auto;
             padding: 24px;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Welcome Screen */
         .welcome-screen {
             text-align: center;
-            padding: 60px 20px;
-            max-width: 600px;
-            margin: 0 auto;
+            margin-top: 64px;
         }
 
         .welcome-screen h2 {
-            font-size: 32px;
-            font-weight: 600;
-            color: #1f2937;
+            font-size: 24px;
             margin-bottom: 16px;
+            color: #1f2937;
         }
 
         .welcome-screen p {
@@ -130,82 +128,51 @@
             margin-bottom: 32px;
         }
 
-        .model-info {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 16px;
-            margin: 24px 0;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .model-details {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .suggestions-grid {
+        .example-questions {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 12px;
             margin-top: 32px;
         }
 
-        .suggestion-card {
-            background: #ffffff;
+        .example-question {
+            background: #f9fafb;
             border: 1px solid #e5e7eb;
             border-radius: 12px;
-            padding: 20px;
+            padding: 16px;
+            text-align: left;
             cursor: pointer;
             transition: all 0.2s ease;
-            text-align: left;
         }
 
-        .suggestion-card:hover {
-            border-color: #1e40af;
-            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.1);
+        .example-question:hover {
+            background: #f3f4f6;
+            border-color: #d1d5db;
         }
 
-        .suggestion-card .icon {
-            font-size: 20px;
-            margin-bottom: 8px;
-        }
-
-        .suggestion-card .title {
+        .example-question h4 {
+            font-size: 14px;
             font-weight: 600;
-            color: #1f2937;
+            color: #374151;
             margin-bottom: 4px;
         }
 
-        .suggestion-card .description {
-            font-size: 14px;
+        .example-question p {
+            font-size: 13px;
             color: #6b7280;
+            margin: 0;
         }
 
-        /* Messages */
+        /* Messages - Enhanced for long content */
         .message {
             margin-bottom: 24px;
             display: flex;
             gap: 12px;
+            animation: slideUp 0.3s ease-out;
         }
 
         .message.user {
             flex-direction: row-reverse;
-        }
-
-        .message.user .message-content {
-            background: #1e40af;
-            color: white;
-        }
-
-        .message.assistant .message-content {
-            background: #f9fafb;
-            border: 1px solid #e5e7eb;
-            color: #374151;
         }
 
         .message-avatar {
@@ -230,27 +197,68 @@
             color: white;
         }
 
+        /* Enhanced message content for long messages */
         .message-content {
             max-width: calc(100% - 44px);
             padding: 12px 16px;
             border-radius: 18px;
             line-height: 1.5;
             word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+            max-height: none;
+            overflow: visible;
         }
 
         .message.user .message-content {
+            background: #1e40af;
+            color: white;
             border-bottom-right-radius: 4px;
         }
 
         .message.assistant .message-content {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            color: #374151;
             border-bottom-left-radius: 4px;
+        }
+
+        /* Handle paragraphs in long messages */
+        .message-content p {
+            margin: 0 0 8px 0;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Code blocks and preformatted text */
+        .message-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            background: rgba(0, 0, 0, 0.05);
+            padding: 8px;
+            border-radius: 4px;
+            margin: 4px 0;
+        }
+
+        .message-content code {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
         }
 
         /* Typing indicator */
         .typing-indicator {
             display: flex;
             gap: 4px;
-            padding: 12px 16px;
+            align-items: center;
         }
 
         .typing-dot {
@@ -261,46 +269,32 @@
             animation: typing 1.4s infinite ease-in-out;
         }
 
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
 
-        @keyframes typing {
-            0%, 80%, 100% { 
-                transform: scale(0.8);
-                opacity: 0.5;
-            }
-            40% { 
-                transform: scale(1);
-                opacity: 1;
-            }
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
         }
 
         /* Input Area */
         .input-area {
-            border-top: 1px solid #e5e7eb;
             background: #ffffff;
-            padding: 24px;
+            border-top: 1px solid #e5e7eb;
+            padding: 16px 24px;
+            flex-shrink: 0;
         }
 
         .input-container {
             max-width: 768px;
             margin: 0 auto;
-            position: relative;
-        }
-
-        .input-wrapper {
             display: flex;
-            align-items: flex-end;
             gap: 12px;
-            background: #ffffff;
-            border: 2px solid #e5e7eb;
+            align-items: flex-end;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
             border-radius: 24px;
-            padding: 12px;
-            transition: border-color 0.2s ease;
-        }
-
-        .input-wrapper:focus-within {
-            border-color: #1e40af;
+            padding: 8px 16px;
         }
 
         .message-input {
@@ -335,72 +329,70 @@
             flex-shrink: 0;
         }
 
-        .send-button:hover:not(:disabled) {
+        .send-button:hover {
             background: #1d4ed8;
             transform: scale(1.05);
         }
 
         .send-button:disabled {
-            background: #d1d5db;
+            background: #9ca3af;
             cursor: not-allowed;
             transform: none;
         }
 
-        /* Error States */
+        /* Error Messages */
         .error-message {
-            background: #fee2e2;
+            background: #fef2f2;
             border: 1px solid #fecaca;
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: 8px;
+            padding: 12px 16px;
             margin: 16px 0;
-            color: #991b1b;
         }
 
         .error-message .error-title {
             font-weight: 600;
-            margin-bottom: 8px;
+            color: #dc2626;
+            margin-bottom: 4px;
         }
 
-        /* Responsive Design */
+        .error-message p {
+            color: #991b1b;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        /* Mobile responsiveness */
         @media (max-width: 768px) {
             .header {
                 padding: 12px 16px;
             }
 
+            .header-title {
+                font-size: 16px;
+            }
+
             .messages-list {
-                padding: 16px;
-            }
-
-            .input-area {
-                padding: 16px;
-            }
-
-            .welcome-screen {
-                padding: 40px 20px;
-            }
-
-            .welcome-screen h2 {
-                font-size: 28px;
-            }
-
-            .suggestions-grid {
-                grid-template-columns: 1fr;
+                padding: 16px 12px;
             }
 
             .message-content {
-                max-width: calc(100% - 44px);
+                max-width: calc(100vw - 80px);
+            }
+
+            .input-area {
+                padding: 12px 16px;
+            }
+
+            .example-questions {
+                grid-template-columns: 1fr;
             }
         }
 
-        /* Animation */
-        .message {
-            animation: slideUp 0.3s ease-out;
-        }
-
+        /* Animations */
         @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(16px);
+                transform: translateY(20px);
             }
             to {
                 opacity: 1;
@@ -408,13 +400,16 @@
             }
         }
 
-        /* French flag accent colors */
-        .accent-blue { color: #1e40af; }
-        .accent-red { color: #dc2626; }
-        .bg-blue { background-color: #1e40af; }
-        .bg-red { background-color: #dc2626; }
-        .border-blue { border-color: #1e40af; }
-        .border-red { border-color: #dc2626; }
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -422,11 +417,14 @@
     <header class="header">
         <div class="header-left">
             <div class="logo">🇫🇷</div>
-            <h1>FrancoBot</h1>
+            <h1 class="header-title">FrancoBot</h1>
         </div>
-        <div class="status-indicator connecting" id="statusIndicator">
-            <div class="status-dot"></div>
-            <span id="statusText">Connexion...</span>
+        <div class="header-right">
+            <div class="status-indicator">
+                <span class="status-dot accent-blue"></span>
+                <span id="modelStatus">Connexion...</span>
+            </div>
+            <span id="modelName">Chargement...</span>
         </div>
     </header>
 
@@ -436,40 +434,25 @@
             <div class="messages-list" id="messagesList">
                 <!-- Welcome Screen -->
                 <div class="welcome-screen" id="welcomeScreen">
-                    <h2>Bonjour ! Je suis <span class="accent-blue">Franco</span><span class="accent-red">Bot</span> 👋</h2>
-                    <p>Votre assistant IA spécialisé dans l'enseignement du français. Je peux vous aider avec la grammaire, le vocabulaire, la conversation et bien plus encore !</p>
-                    
-                    <div class="model-info" id="modelInfo">
-                        <div class="model-details">
-                            <span>🤖 Modèle:</span>
-                            <strong id="modelName">Chargement...</strong>
-                        </div>
-                        <div class="model-details">
-                            <span>⚡ Statut:</span>
-                            <strong id="modelStatus">Vérification...</strong>
-                        </div>
-                    </div>
+                    <h2>Bonjour ! Je suis <span class="accent-blue">Franco</span><span class="accent-red">Bot</span> 🇫🇷</h2>
+                    <p>Votre assistant personnel pour apprendre le français. Posez-moi des questions sur la grammaire, le vocabulaire, la conjugaison ou la culture française !</p>
 
-                    <div class="suggestions-grid">
-                        <div class="suggestion-card" onclick="sendMessage('Salut ! Je veux apprendre le français')">
-                            <div class="icon">🎓</div>
-                            <div class="title">Commencer l'apprentissage</div>
-                            <div class="description">Débuter avec les bases du français</div>
+                    <div class="example-questions">
+                        <div class="example-question" onclick="sendExampleQuestion('Explique-moi le passé composé')">
+                            <h4>📚 Grammaire</h4>
+                            <p>Explique-moi le passé composé</p>
                         </div>
-                        <div class="suggestion-card" onclick="sendMessage('Explique-moi le passé composé avec des exemples')">
-                            <div class="icon">📚</div>
-                            <div class="title">Grammaire française</div>
-                            <div class="description">Apprendre les règles grammaticales</div>
+                        <div class="example-question" onclick="sendExampleQuestion('Quelle est la différence entre être et avoir ?')">
+                            <h4>🔄 Conjugaison</h4>
+                            <p>Différence entre être et avoir</p>
                         </div>
-                        <div class="suggestion-card" onclick="sendMessage('Créons un dialogue au restaurant')">
-                            <div class="icon">💬</div>
-                            <div class="title">Conversation pratique</div>
-                            <div class="description">Pratiquer le français parlé</div>
+                        <div class="example-question" onclick="sendExampleQuestion('Comment dit-on bonjour en français familier ?')">
+                            <h4>💬 Vocabulaire</h4>
+                            <p>Expressions de salutation</p>
                         </div>
-                        <div class="suggestion-card" onclick="sendMessage('Aide-moi avec la conjugaison des verbes')">
-                            <div class="icon">🔤</div>
-                            <div class="title">Conjugaison</div>
-                            <div class="description">Maîtriser les temps verbaux</div>
+                        <div class="example-question" onclick="sendExampleQuestion('Donne-moi des conseils pour améliorer mon français')">
+                            <h4>🎯 Conseils</h4>
+                            <p>Améliorer mon français</p>
                         </div>
                     </div>
                 </div>
@@ -479,81 +462,69 @@
         <!-- Input Area -->
         <div class="input-area">
             <div class="input-container">
-                <div class="input-wrapper">
-                    <textarea 
-                        id="messageInput" 
-                        class="message-input" 
-                        placeholder="Posez votre question en français..."
-                        rows="1"
-                        onkeydown="handleKeyDown(event)"
-                        oninput="adjustTextareaHeight(this)"
-                    ></textarea>
-                    <button class="send-button" id="sendButton" onclick="sendUserMessage()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                        </svg>
-                    </button>
-                </div>
+                <textarea 
+                    id="messageInput" 
+                    class="message-input" 
+                    placeholder="Tapez votre question en français..."
+                    rows="1"
+                ></textarea>
+                <button class="send-button" id="sendButton" onclick="sendUserMessage()">
+                    ➤
+                </button>
             </div>
         </div>
     </main>
 
     <script>
         let isLoading = false;
-        let modelAvailable = false;
 
-        // Auto-resize textarea
-        function adjustTextareaHeight(textarea) {
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-        }
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            checkServerStatus();
+            document.getElementById('messageInput').focus();
+        });
 
-        // Check backend status
-        async function checkBackendStatus() {
+        // Check server status on load
+        async function checkServerStatus() {
             try {
                 const response = await fetch('/api/status');
                 if (response.ok) {
                     const data = await response.json();
-                    const hasModel = data.model_available;
-                    const modelName = data.model || 'None';
+                    const modelName = data.model || 'Modèle inconnu';
                     const provider = data.provider || 'unknown';
-                    
-                    // Update UI
+                    const isReady = data.model_available;
+
                     document.getElementById('modelName').textContent = `${modelName} (${provider})`;
-                    
-                    if (hasModel) {
-                        updateStatus('connected', 'Connecté');
+
+                    if (isReady) {
                         document.getElementById('modelStatus').textContent = 'Prêt ✅';
-                        modelAvailable = true;
+                        document.querySelector('.status-dot').className = 'status-dot accent-blue';
                     } else {
-                        updateStatus('disconnected', 'Modèle indisponible');
                         document.getElementById('modelStatus').textContent = 'Non disponible ❌';
-                        modelAvailable = false;
+                        document.querySelector('.status-dot').className = 'status-dot accent-red';
                     }
                 } else {
-                    throw new Error('Backend not responding');
+                    throw new Error('Server not responding');
                 }
             } catch (error) {
-                updateStatus('disconnected', 'Backend déconnecté');
                 document.getElementById('modelStatus').textContent = 'Service arrêté ❌';
                 document.getElementById('modelName').textContent = 'Erreur de connexion';
-                console.error('Backend connection error:', error);
+                document.querySelector('.status-dot').className = 'status-dot accent-red';
             }
         }
 
-        function updateStatus(status, text) {
-            const indicator = document.getElementById('statusIndicator');
-            const statusText = document.getElementById('statusText');
-            
-            indicator.className = `status-indicator ${status}`;
+        // Update status text
+        function updateStatus(text) {
+            const statusText = document.getElementById('modelStatus');
             statusText.textContent = text;
         }
 
+        // Enhanced addMessage function for long content handling
         function addMessage(content, sender, isTyping = false) {
             const messagesList = document.getElementById('messagesList');
-            const welcomeScreen = document.getElementById('welcomeScreen');
-            
+
             // Hide welcome screen on first message
+            const welcomeScreen = document.getElementById('welcomeScreen');
             if (welcomeScreen && !isTyping) {
                 welcomeScreen.style.display = 'none';
             }
@@ -561,42 +532,54 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
             if (isTyping) messageDiv.id = 'typingMessage';
-            
+
+            // Avatar
             const avatar = document.createElement('div');
             avatar.className = 'message-avatar';
             avatar.innerHTML = sender === 'user' ? '👤' : '🇫🇷';
-            
+
+            // Content
             const content_div = document.createElement('div');
             content_div.className = 'message-content';
-            
+
             if (isTyping) {
                 content_div.innerHTML = `
                     <div class="typing-indicator">
                         <div class="typing-dot"></div>
+                        <div class="typing-dot"></div> 
                         <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                `;
+                    </div>`;
             } else {
                 content_div.innerHTML = formatMessage(content);
             }
-            
+
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(content_div);
             messagesList.appendChild(messageDiv);
-            
-            // Scroll to bottom
-            document.getElementById('chatContainer').scrollTop = document.getElementById('chatContainer').scrollHeight;
+
+            // Enhanced auto-scroll with smooth behavior
+            setTimeout(() => {
+                const chatContainer = document.getElementById('chatContainer');
+                chatContainer.scrollTo({
+                    top: chatContainer.scrollHeight,
+                    behavior: 'smooth'
+                });
+            }, 100);
         }
 
+        // Enhanced message formatting for better long text handling
         function formatMessage(content) {
+            if (!content) return '';
+
+            // Convert markdown-style formatting and handle line breaks properly
             return content
+                .replace(/\n/g, '<br>')
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/\n/g, '<br>')
-                .replace(/(🎓|📚|🗣️|🎯|💬|📖|🔤|✅|❌|⚠️|🔍|💡|🔧)/g, '<span style="font-size: 1.1em;">$&</span>');
+                .replace(/`(.*?)`/g, '<code>$1</code>');
         }
 
+        // Remove typing message
         function removeTypingMessage() {
             const typingMessage = document.getElementById('typingMessage');
             if (typingMessage) {
@@ -604,20 +587,24 @@
             }
         }
 
+        // Enhanced sendMessage function
         async function sendMessage(message) {
             if (!message.trim() || isLoading) return;
 
+            isLoading = true;
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = true;
+
             // Add user message
             addMessage(message, 'user');
-            
+
             // Clear input
             const input = document.getElementById('messageInput');
             input.value = '';
-            adjustTextareaHeight(input);
-            
+            input.style.height = 'auto';
+
             // Show typing indicator
-            isLoading = true;
-            document.getElementById('sendButton').disabled = true;
+            updateStatus('Génération...');
             addMessage('', 'assistant', true);
 
             try {
@@ -632,30 +619,31 @@
                 }
 
                 const data = await response.json();
-                
+
                 removeTypingMessage();
-                
+                updateStatus('Prêt ✅');
+
                 if (data.response) {
                     addMessage(data.response, 'assistant');
-                } else if (data.error) {
-                    addMessage(`❌ Erreur: ${data.error}`, 'assistant');
                 } else {
-                    throw new Error('Format de réponse invalide');
+                    addMessage(`❌ Erreur: ${data.error}`, 'assistant');
                 }
 
             } catch (error) {
                 console.error('Error:', error);
+                updateStatus('Erreur ❌');
                 removeTypingMessage();
-                
+
                 const errorMsg = `❌ **Erreur de connexion**\n\nImpossible de se connecter au serveur. Vérifiez que :\n• Le serveur Flask fonctionne\n• Votre clé API est configurée\n• Votre connexion internet est active\n\n**Erreur:** ${error.message}`;
                 addMessage(errorMsg, 'assistant');
             } finally {
                 isLoading = false;
-                document.getElementById('sendButton').disabled = false;
+                sendButton.disabled = false;
                 input.focus();
             }
         }
 
+        // Send user message
         function sendUserMessage() {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
@@ -664,21 +652,27 @@
             }
         }
 
-        function handleKeyDown(event) {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                sendUserMessage();
-            }
+        // Send example question
+        function sendExampleQuestion(question) {
+            sendMessage(question);
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            checkBackendStatus();
-            document.getElementById('messageInput').focus();
+        // Handle Enter key
+        document.getElementById('messageInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendUserMessage();
+            }
         });
 
-        // Check status periodically
-        setInterval(checkBackendStatus, 30000);
+        // Auto-resize textarea
+        document.getElementById('messageInput').addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+
+        // Focus input when page loads
+        document.getElementById('messageInput').focus();
     </script>
 </body>
 </html>
