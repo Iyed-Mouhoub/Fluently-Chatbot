@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🇫🇷 FroncoBot</title>
+    <title>🇫🇷 FrancoBot - Assistant Français</title>
     <style>
         * {
             margin: 0;
@@ -12,231 +12,395 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #ffffff;
+            color: #374151;
+            height: 100vh;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+            flex-direction: column;
         }
 
-        .container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
+        /* Header */
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #1e40af 0%, #dc2626 50%, #ffffff 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 900px;
-            height: 80vh;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status-indicator.connected {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-indicator.disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-indicator.connecting {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Main Chat Area */
+        .chat-main {
+            flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        .header {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            padding: 30px;
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        .messages-list {
+            max-width: 768px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
             text-align: center;
-            position: relative;
+            padding: 60px 20px;
+            max-width: 600px;
+            margin: 0 auto;
         }
 
-        .header h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        .welcome-screen h2 {
+            font-size: 32px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 16px;
         }
 
-        .header p {
-            opacity: 0.9;
-            font-size: 1.1rem;
+        .welcome-screen p {
+            font-size: 16px;
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 32px;
         }
 
-        .status {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+        .model-info {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 24px 0;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .model-details {
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .status.connected {
-            background: rgba(76, 175, 80, 0.3);
+        .suggestions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            margin-top: 32px;
         }
 
-        .status.disconnected {
-            background: rgba(244, 67, 54, 0.3);
+        .suggestion-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
         }
 
-        .chat-container {
-            flex: 1;
-            padding: 30px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+        .suggestion-card:hover {
+            border-color: #1e40af;
+            box-shadow: 0 4px 12px rgba(30, 64, 175, 0.1);
         }
 
+        .suggestion-card .icon {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .suggestion-card .title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .suggestion-card .description {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        /* Messages */
         .message {
+            margin-bottom: 24px;
             display: flex;
-            gap: 15px;
-            max-width: 80%;
-            animation: slideIn 0.3s ease-out;
+            gap: 12px;
         }
 
         .message.user {
-            align-self: flex-end;
             flex-direction: row-reverse;
         }
 
-        .message.assistant {
-            align-self: flex-start;
+        .message.user .message-content {
+            background: #1e40af;
+            color: white;
         }
 
-        .avatar {
-            width: 40px;
-            height: 40px;
+        .message.assistant .message-content {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            color: #374151;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 16px;
             flex-shrink: 0;
+            margin-top: 2px;
         }
 
-        .avatar.user {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .message.user .message-avatar {
+            background: #1e40af;
             color: white;
         }
 
-        .avatar.assistant {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #1e40af, #dc2626);
             color: white;
         }
 
         .message-content {
-            background: white;
-            padding: 20px;
-            border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-            line-height: 1.6;
+            max-width: calc(100% - 44px);
+            padding: 12px 16px;
+            border-radius: 18px;
+            line-height: 1.5;
+            word-wrap: break-word;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            border-bottom-right-radius: 4px;
         }
 
-        .input-container {
-            padding: 30px;
-            background: rgba(248, 249, 250, 0.8);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(0, 0, 0, 0.1);
+        .message.assistant .message-content {
+            border-bottom-left-radius: 4px;
         }
 
-        .input-form {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .input-field {
-            flex: 1;
-            padding: 15px 20px;
-            border: 2px solid rgba(0, 0, 0, 0.1);
-            border-radius: 50px;
-            font-size: 1rem;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .input-field:focus {
-            border-color: #4facfe;
-            box-shadow: 0 0 20px rgba(79, 172, 254, 0.2);
-        }
-
-        .send-btn {
-            width: 50px;
-            height: 50px;
-            border: none;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .send-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(79, 172, 254, 0.4);
-        }
-
-        .send-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .suggestions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 20px;
-        }
-
-        .suggestion {
-            background: rgba(79, 172, 254, 0.1);
-            color: #4facfe;
-            padding: 8px 16px;
-            border-radius: 20px;
-            border: 1px solid rgba(79, 172, 254, 0.3);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-        }
-
-        .suggestion:hover {
-            background: #4facfe;
-            color: white;
-            transform: translateY(-1px);
-        }
-
-        .loading {
+        /* Typing indicator */
+        .typing-indicator {
             display: flex;
             gap: 4px;
-            padding: 15px;
+            padding: 12px 16px;
         }
 
-        .loading-dot {
+        .typing-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #4facfe;
-            animation: loading 1.4s infinite ease-in-out;
+            background: #9ca3af;
+            animation: typing 1.4s infinite ease-in-out;
         }
 
-        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
-        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
-        @keyframes loading {
-            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-            40% { transform: scale(1.2); opacity: 1; }
+        @keyframes typing {
+            0%, 80%, 100% { 
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% { 
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
-        @keyframes slideIn {
+        /* Input Area */
+        .input-area {
+            border-top: 1px solid #e5e7eb;
+            background: #ffffff;
+            padding: 24px;
+        }
+
+        .input-container {
+            max-width: 768px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            background: #ffffff;
+            border: 2px solid #e5e7eb;
+            border-radius: 24px;
+            padding: 12px;
+            transition: border-color 0.2s ease;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: #1e40af;
+        }
+
+        .message-input {
+            flex: 1;
+            border: none;
+            outline: none;
+            resize: none;
+            font-size: 16px;
+            line-height: 1.5;
+            max-height: 120px;
+            min-height: 24px;
+            background: transparent;
+            font-family: inherit;
+        }
+
+        .message-input::placeholder {
+            color: #9ca3af;
+        }
+
+        .send-button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            background: #1e40af;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .send-button:hover:not(:disabled) {
+            background: #1d4ed8;
+            transform: scale(1.05);
+        }
+
+        .send-button:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Error States */
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 16px 0;
+            color: #991b1b;
+        }
+
+        .error-message .error-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                padding: 12px 16px;
+            }
+
+            .messages-list {
+                padding: 16px;
+            }
+
+            .input-area {
+                padding: 16px;
+            }
+
+            .welcome-screen {
+                padding: 40px 20px;
+            }
+
+            .welcome-screen h2 {
+                font-size: 28px;
+            }
+
+            .suggestions-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .message-content {
+                max-width: calc(100% - 44px);
+            }
+        }
+
+        /* Animation */
+        .message {
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(20px);
+                transform: translateY(16px);
             }
             to {
                 opacity: 1;
@@ -244,223 +408,199 @@
             }
         }
 
-        .welcome-message {
-            text-align: center;
-            color: #666;
-            padding: 40px 20px;
-        }
-
-        .welcome-message h2 {
-            color: #333;
-            margin-bottom: 15px;
-            font-size: 1.5rem;
-        }
-
-        .welcome-message p {
-            margin-bottom: 10px;
-            line-height: 1.6;
-        }
-
-        .model-info {
-            background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05));
-            border: 1px solid rgba(76, 175, 80, 0.2);
-            padding: 15px;
-            border-radius: 10px;
-            margin-top: 20px;
-            font-size: 0.9rem;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                height: 90vh;
-                margin: 10px;
-            }
-            
-            .header {
-                padding: 20px;
-            }
-            
-            .header h1 {
-                font-size: 2rem;
-            }
-            
-            .chat-container {
-                padding: 20px;
-            }
-            
-            .message {
-                max-width: 90%;
-            }
-            
-            .input-container {
-                padding: 20px;
-            }
-        }
+        /* French flag accent colors */
+        .accent-blue { color: #1e40af; }
+        .accent-red { color: #dc2626; }
+        .bg-blue { background-color: #1e40af; }
+        .bg-red { background-color: #dc2626; }
+        .border-blue { border-color: #1e40af; }
+        .border-red { border-color: #dc2626; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🇫🇷 FroncoBot</h1>
-            <p>Salut, c'est FroncoBot, apprenons ensemle le Français</p>
-            <div class="status" id="status">
-                <span id="status-dot">●</span>
-                <span id="status-text">Connexion...</span>
-            </div>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">🇫🇷</div>
+            <h1>FrancoBot</h1>
         </div>
+        <div class="status-indicator connecting" id="statusIndicator">
+            <div class="status-dot"></div>
+            <span id="statusText">Connexion...</span>
+        </div>
+    </header>
 
+    <!-- Main Chat Area -->
+    <main class="chat-main">
         <div class="chat-container" id="chatContainer">
-            <div class="welcome-message">
-                <h2>Bienvenue dans votre cours de français avec moi, FrancoBot ! 👋</h2>
-                <p>Je suis votre assistant IA spécialisé dans l'enseignement du français.</p>
-                <p><strong>Je peux vous aider avec :</strong></p>
-                <p>📚 Grammaire • 🗣️ Conversation • 📖 Vocabulaire • 🎯 Exercices</p>
-                
-                <div class="model-info">
-                    <strong>🦙 Modèle :</strong> <span id="model-name">Vérification...</span> | 
-                    <strong>⚡ Statut :</strong> <span id="model-status">Vérification...</span>
-                </div>
+            <div class="messages-list" id="messagesList">
+                <!-- Welcome Screen -->
+                <div class="welcome-screen" id="welcomeScreen">
+                    <h2>Bonjour ! Je suis <span class="accent-blue">Franco</span><span class="accent-red">Bot</span> 👋</h2>
+                    <p>Votre assistant IA spécialisé dans l'enseignement du français. Je peux vous aider avec la grammaire, le vocabulaire, la conversation et bien plus encore !</p>
+                    
+                    <div class="model-info" id="modelInfo">
+                        <div class="model-details">
+                            <span>🤖 Modèle:</span>
+                            <strong id="modelName">Chargement...</strong>
+                        </div>
+                        <div class="model-details">
+                            <span>⚡ Statut:</span>
+                            <strong id="modelStatus">Vérification...</strong>
+                        </div>
+                    </div>
 
-                <div class="suggestions">
-                    <div class="suggestion" onclick="sendMessage('Salut! Je veux apprendre le français')">🎓 Commencer</div>
-                    <div class="suggestion" onclick="sendMessage('Explique-moi le passé composé')">📚 Grammaire</div>
-                    <div class="suggestion" onclick="sendMessage('Créons un dialogue au restaurant')">💬 Dialogue</div>
-                    <div class="suggestion" onclick="sendMessage('Aide-moi avec la conjugaison')">🔤 Conjugaison</div>
+                    <div class="suggestions-grid">
+                        <div class="suggestion-card" onclick="sendMessage('Salut ! Je veux apprendre le français')">
+                            <div class="icon">🎓</div>
+                            <div class="title">Commencer l'apprentissage</div>
+                            <div class="description">Débuter avec les bases du français</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendMessage('Explique-moi le passé composé avec des exemples')">
+                            <div class="icon">📚</div>
+                            <div class="title">Grammaire française</div>
+                            <div class="description">Apprendre les règles grammaticales</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendMessage('Créons un dialogue au restaurant')">
+                            <div class="icon">💬</div>
+                            <div class="title">Conversation pratique</div>
+                            <div class="description">Pratiquer le français parlé</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendMessage('Aide-moi avec la conjugaison des verbes')">
+                            <div class="icon">🔤</div>
+                            <div class="title">Conjugaison</div>
+                            <div class="description">Maîtriser les temps verbaux</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="input-container">
-            <div class="input-form">
-                <input 
-                    type="text" 
-                    id="messageInput" 
-                    class="input-field" 
-                    placeholder="Posez votre question en français..."
-                    onkeypress="handleKeyPress(event)"
-                >
-                <button class="send-btn" id="sendBtn" onclick="sendUserMessage()">
-                    ➤
-                </button>
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="messageInput" 
+                        class="message-input" 
+                        placeholder="Posez votre question en français..."
+                        rows="1"
+                        onkeydown="handleKeyDown(event)"
+                        oninput="adjustTextareaHeight(this)"
+                    ></textarea>
+                    <button class="send-button" id="sendButton" onclick="sendUserMessage()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <script>
         let isLoading = false;
         let modelAvailable = false;
 
-        // Check Flask backend status on page load
+        // Auto-resize textarea
+        function adjustTextareaHeight(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        // Check backend status
         async function checkBackendStatus() {
             try {
                 const response = await fetch('/api/status');
                 if (response.ok) {
                     const data = await response.json();
                     const hasModel = data.model_available;
-                    const modelName = data.ollama_model || 'None';
+                    const modelName = data.model || 'None';
+                    const provider = data.provider || 'unknown';
                     
-                    // Update UI elements
-                    document.getElementById('model-name').textContent = modelName;
+                    // Update UI
+                    document.getElementById('modelName').textContent = `${modelName} (${provider})`;
                     
                     if (hasModel) {
-                        updateStatus('connected', 'Modèle Connecté');
-                        document.getElementById('model-status').textContent = 'Prêt ✅';
+                        updateStatus('connected', 'Connecté');
+                        document.getElementById('modelStatus').textContent = 'Prêt ✅';
                         modelAvailable = true;
                     } else {
-                        updateStatus('disconnected', 'Modèle Indisponible');
-                        document.getElementById('model-status').textContent = 'Non détecté ❌';
+                        updateStatus('disconnected', 'Modèle indisponible');
+                        document.getElementById('modelStatus').textContent = 'Non disponible ❌';
                         modelAvailable = false;
                     }
                 } else {
                     throw new Error('Backend not responding');
                 }
             } catch (error) {
-                updateStatus('disconnected', 'Backend Déconnecté');
-                document.getElementById('model-status').textContent = 'Service non démarré ❌';
-                document.getElementById('model-name').textContent = 'Backend Error';
+                updateStatus('disconnected', 'Backend déconnecté');
+                document.getElementById('modelStatus').textContent = 'Service arrêté ❌';
+                document.getElementById('modelName').textContent = 'Erreur de connexion';
                 console.error('Backend connection error:', error);
             }
         }
 
         function updateStatus(status, text) {
-            const statusEl = document.getElementById('status');
-            const statusText = document.getElementById('status-text');
-            const statusDot = document.getElementById('status-dot');
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
             
-            statusEl.className = `status ${status}`;
+            indicator.className = `status-indicator ${status}`;
             statusText.textContent = text;
-            statusDot.style.color = status === 'connected' ? '#4caf50' : '#f44336';
         }
 
-        function addMessage(content, sender) {
-            const chatContainer = document.getElementById('chatContainer');
-            const welcomeMessage = chatContainer.querySelector('.welcome-message');
+        function addMessage(content, sender, isTyping = false) {
+            const messagesList = document.getElementById('messagesList');
+            const welcomeScreen = document.getElementById('welcomeScreen');
             
-            if (welcomeMessage) {
-                welcomeMessage.remove();
+            // Hide welcome screen on first message
+            if (welcomeScreen && !isTyping) {
+                welcomeScreen.style.display = 'none';
             }
 
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
+            if (isTyping) messageDiv.id = 'typingMessage';
             
             const avatar = document.createElement('div');
-            avatar.className = `avatar ${sender}`;
-            avatar.textContent = sender === 'user' ? '👤' : '🤖';
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = sender === 'user' ? '👤' : '🇫🇷';
             
-            const messageContent = document.createElement('div');
-            messageContent.className = 'message-content';
+            const content_div = document.createElement('div');
+            content_div.className = 'message-content';
             
-            if (sender === 'assistant' && content.includes('\n')) {
-                // Format assistant responses with better structure
-                messageContent.innerHTML = formatAssistantResponse(content);
+            if (isTyping) {
+                content_div.innerHTML = `
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                `;
             } else {
-                messageContent.textContent = content;
+                content_div.innerHTML = formatMessage(content);
             }
             
             messageDiv.appendChild(avatar);
-            messageDiv.appendChild(messageContent);
+            messageDiv.appendChild(content_div);
+            messagesList.appendChild(messageDiv);
             
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Scroll to bottom
+            document.getElementById('chatContainer').scrollTop = document.getElementById('chatContainer').scrollHeight;
         }
 
-        function formatAssistantResponse(content) {
-            // Simple formatting for better readability
+        function formatMessage(content) {
             return content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/• (.*)/g, '• $1')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/\n/g, '<br>')
-                .replace(/🔤|📚|🗣️|🎯|💬|🎓|📖/g, '<span style="font-size: 1.1em;">$&</span>');
+                .replace(/(🎓|📚|🗣️|🎯|💬|📖|🔤|✅|❌|⚠️|🔍|💡|🔧)/g, '<span style="font-size: 1.1em;">$&</span>');
         }
 
-        function addLoadingMessage() {
-            const chatContainer = document.getElementById('chatContainer');
-            const loadingDiv = document.createElement('div');
-            loadingDiv.className = 'message assistant';
-            loadingDiv.id = 'loading-message';
-            
-            const avatar = document.createElement('div');
-            avatar.className = 'avatar assistant';
-            avatar.textContent = '🤖';
-            
-            const loadingContent = document.createElement('div');
-            loadingContent.className = 'message-content loading';
-            loadingContent.innerHTML = `
-                <div class="loading-dot"></div>
-                <div class="loading-dot"></div>
-                <div class="loading-dot"></div>
-            `;
-            
-            loadingDiv.appendChild(avatar);
-            loadingDiv.appendChild(loadingContent);
-            chatContainer.appendChild(loadingDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function removeLoadingMessage() {
-            const loadingMessage = document.getElementById('loading-message');
-            if (loadingMessage) {
-                loadingMessage.remove();
+        function removeTypingMessage() {
+            const typingMessage = document.getElementById('typingMessage');
+            if (typingMessage) {
+                typingMessage.remove();
             }
         }
 
@@ -471,23 +611,20 @@
             addMessage(message, 'user');
             
             // Clear input
-            document.getElementById('messageInput').value = '';
+            const input = document.getElementById('messageInput');
+            input.value = '';
+            adjustTextareaHeight(input);
             
-            // Show loading
+            // Show typing indicator
             isLoading = true;
-            document.getElementById('sendBtn').disabled = true;
-            addLoadingMessage();
+            document.getElementById('sendButton').disabled = true;
+            addMessage('', 'assistant', true);
 
             try {
-                // Use Flask backend instead of direct Ollama calls
                 const response = await fetch('/api/chat', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        message: message
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
                 });
 
                 if (!response.ok) {
@@ -496,38 +633,26 @@
 
                 const data = await response.json();
                 
-                removeLoadingMessage();
+                removeTypingMessage();
                 
                 if (data.response) {
                     addMessage(data.response, 'assistant');
                 } else if (data.error) {
                     addMessage(`❌ Erreur: ${data.error}`, 'assistant');
                 } else {
-                    throw new Error('Invalid response format');
+                    throw new Error('Format de réponse invalide');
                 }
 
             } catch (error) {
                 console.error('Error:', error);
-                removeLoadingMessage();
+                removeTypingMessage();
                 
-                const fallbackResponse = `❌ **Erreur de connexion au backend**
-
-Je ne peux pas me connecter au serveur Flask pour le moment.
-
-**🔋 Vérifications rapides :**
-• Le serveur Flask fonctionne-t-il ? → \`python app.py\`
-• Ollama est-il démarré ? → \`ollama serve\`
-• Le modèle est-il disponible ? → \`ollama list\`
-
-**💡 En attendant :**
-Redémarrez le serveur Flask et actualisez cette page.
-
-**🔧 Erreur technique :** ${error.message}`;
-
-                addMessage(fallbackResponse, 'assistant');
+                const errorMsg = `❌ **Erreur de connexion**\n\nImpossible de se connecter au serveur. Vérifiez que :\n• Le serveur Flask fonctionne\n• Votre clé API est configurée\n• Votre connexion internet est active\n\n**Erreur:** ${error.message}`;
+                addMessage(errorMsg, 'assistant');
             } finally {
                 isLoading = false;
-                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('sendButton').disabled = false;
+                input.focus();
             }
         }
 
@@ -539,21 +664,21 @@ Redémarrez le serveur Flask et actualisez cette page.
             }
         }
 
-        function handleKeyPress(event) {
+        function handleKeyDown(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
                 sendUserMessage();
             }
         }
 
-        // Initialize on page load
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             checkBackendStatus();
             document.getElementById('messageInput').focus();
         });
 
         // Check status periodically
-        setInterval(checkBackendStatus, 30000); // Check every 30 seconds
+        setInterval(checkBackendStatus, 30000);
     </script>
 </body>
 </html>

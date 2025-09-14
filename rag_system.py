@@ -1,419 +1,405 @@
-import chromadb
-from sentence_transformers import SentenceTransformer
+#!/usr/bin/env python3
+"""
+FrenchRAG with FAISS retriever and OpenRouter API support
+"""
+
 import os
-import requests
-import json
-import time
 import re
+import time
+import json
+import requests
+import faiss
 from typing import Optional
+from sentence_transformers import SentenceTransformer
+import PyPDF2
 
 class FrenchRAG:
-    def __init__(self, use_local_llama=True):
-        # ChromaDB setup
-        self.client = chromadb.PersistentClient(path="./chroma_db")
-        try:
-            self.collection = self.client.get_collection("french_course")
-            print("📚 Collection existante chargée")
-        except:
-            self.collection = self.client.create_collection("french_course")
-            print("📚 Nouvelle collection créée")
-            
-        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+    def __init__(self, use_openrouter=True, openrouter_api_key=None, index_path="french_course.index"):
+        # Embedding model
+        self.encoder = SentenceTransformer("all-MiniLM-L6-v2")
+        self.dimension = self.encoder.get_sentence_embedding_dimension()
+
+        # FAISS index (L2 distance; we normalize embeddings so it works as cosine)
+        self.index_path = index_path
+        if os.path.exists(self.index_path):
+            self.index = faiss.read_index(self.index_path)
+            print(f"📚 FAISS index loaded ({self.index.ntotal} vectors)")
+        else:
+            self.index = faiss.IndexFlatL2(self.dimension)
+            print("📚 New FAISS index created (empty)")
+
+        self.docs = []   # keep raw texts
+        self.ids = []    # keep mapping ids
+
+        # OpenRouter configuration
+        self.use_openrouter = use_openrouter
+        self.openrouter_api_key = openrouter_api_key or os.getenv("OPENROUTER_API_KEY")
+        self.openrouter_url = "https://openrouter.ai/api/v1/chat/completions"
         
-        # Local Llama setup
-        self.use_local_llama = use_local_llama
-        self.ollama_url = "http://localhost:11434/api/generate"
-        
-        self.models = [
-            "llama3.2:1b",
-            "llama3.1:8b", 
-            "llama3.2:3b",
-            "tinyllama",
-            "phi3:mini",
-            "gemma:2b",
-            "mistral",
+        # Available OpenRouter models (prioritized for better responses)
+        self.openrouter_models = [
+            "anthropic/claude-3-haiku",           # Good balance of speed/quality
+            "meta-llama/llama-3.1-8b-instruct:free",  # Free, good for longer responses
+            "google/gemma-2-9b-it:free",          # Free, good quality
+            "microsoft/phi-3-medium-128k-instruct:free",  # Free, handles longer context
+            "microsoft/phi-3-mini-128k-instruct:free",
+            "mistralai/mistral-7b-instruct:free",
+            "meta-llama/llama-3.2-3b-instruct:free"
         ]
         
         self.current_model = None
-        self.check_ollama_models()
         
-        # Define simple greetings that don't need document search
-        self.simple_greetings = {
-            'salut', 'bonjour', 'bonsoir', 'hello', 'hi', 'hey', 'coucou'
-        }
-    
-    def check_ollama_models(self):
-        """Check which models are available in Ollama"""
-        if not self.use_local_llama:
-            return
-            
-        try:
-            response = requests.get("http://localhost:11434/api/tags", timeout=5)
-            if response.status_code == 200:
-                available_models = [model['name'] for model in response.json().get('models', [])]
-                print(f"🦙 Ollama détecté avec {len(available_models)} modèles")
-                print(f"📋 Modèles disponibles: {', '.join(available_models)}")
-                
-                for model in self.models:
-                    if any(model in available for available in available_models):
-                        self.current_model = model
-                        print(f"✅ Modèle sélectionné: {model}")
-                        break
-                
-                if not self.current_model and available_models:
-                    self.current_model = available_models[0]
-                    print(f"📋 Utilisation du modèle disponible: {self.current_model}")
-                elif not self.current_model:
-                    print("⚠️ Aucun modèle trouvé.")
-                    
-            else:
-                print("❌ Ollama non détecté")
-                
-        except requests.exceptions.ConnectionError:
-            print("🔌 Ollama non démarré")
-        except Exception as e:
-            print(f"❌ Erreur Ollama: {e}")
+        if self.use_openrouter:
+            self.setup_openrouter()
+        else:
+            # Fallback to local Ollama setup
+            self.setup_ollama()
 
-    def clean_pdf_content(self, text):
-        """Clean messy PDF content"""
+        # greetings
+        self.simple_greetings = {"salut", "bonjour", "bonsoir", "hello", "hi", "hey", "coucou"}
+
+    # ---------------------- OpenRouter setup ----------------------
+    def setup_openrouter(self):
+        if not self.openrouter_api_key:
+            print("❌ OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable or pass it to constructor.")
+            print("💡 Get your API key from: https://openrouter.ai/")
+            return
+        
+        try:
+            # Test connection with a simple request
+            headers = {
+                "Authorization": f"Bearer {self.openrouter_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # Use the first available model as default
+            self.current_model = self.openrouter_models[0]
+            print(f"🌐 OpenRouter configured with model: {self.current_model}")
+            print(f"🔑 API Key: {'*' * (len(self.openrouter_api_key)-8) + self.openrouter_api_key[-4:]}")
+            
+        except Exception as e:
+            print(f"❌ Error setting up OpenRouter: {e}")
+
+    # ---------------------- Ollama fallback ----------------------
+    def setup_ollama(self):
+        self.ollama_url = "http://localhost:11434/api/generate"
+        self.ollama_models = [
+            "llama3.2:1b", "llama3.1:8b", "llama3.2:3b",
+            "tinyllama", "phi3:mini", "gemma:2b", "mistral"
+        ]
+        self.check_ollama_models()
+
+    def check_ollama_models(self):
+        try:
+            r = requests.get("http://localhost:11434/api/tags", timeout=5)
+            if r.status_code == 200:
+                models = [m["name"] for m in r.json().get("models", [])]
+                print(f"🦙 Ollama detected with {len(models)} models")
+                for m in self.ollama_models:
+                    if any(m in av for av in models):
+                        self.current_model = m
+                        break
+                if not self.current_model and models:
+                    self.current_model = models[0]
+            else:
+                print("❌ Ollama not detected")
+        except requests.exceptions.ConnectionError:
+            print("🔌 Ollama not running")
+        except Exception as e:
+            print(f"❌ Ollama error: {e}")
+
+    # ---------------------- PDF cleaning (unchanged) ----------------------
+    def clean_pdf_content(self, text: str) -> str:
         if not text:
             return ""
-            
-        # Remove common PDF artifacts
         text = re.sub(r'--- Page \d+ ---', '', text)
         text = re.sub(r'@daily\.french_', '', text)
         text = re.sub(r'Prof : Labed Nada', '', text)
         text = re.sub(r'Niveau intermédiaire B1/B2', '', text)
         text = re.sub(r'ATELIER DE.*?CONVERSATION', 'Atelier de conversation', text)
-        text = re.sub(r'🔵|🎯', '', text)
-        
-        # Remove excessive whitespace and duplicates
-        lines = []
-        seen_lines = set()
-        for line in text.split('\n'):
+        text = re.sub(r'[🔵🎯]', '', text)
+
+        lines, seen = [], set()
+        for line in text.splitlines():
             line = line.strip()
-            if line and len(line) > 15 and line not in seen_lines:
+            if line and len(line) > 15 and line not in seen:
                 lines.append(line)
-                seen_lines.add(line)
-        
-        return '\n'.join(lines[:3])
-        
-    def extract_pdf_text(self, pdf_path):
-        """Extract and clean text from PDF"""
-        import PyPDF2
+                seen.add(line)
+        return "\n".join(lines[:3])
+
+    def extract_pdf_text(self, pdf_path: str) -> str:
         text = ""
         try:
-            with open(pdf_path, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                for page_num, page in enumerate(reader.pages):
-                    page_text = page.extract_text()
-                    if page_text.strip():
-                        cleaned_text = self.clean_pdf_content(page_text)
-                        if cleaned_text:
-                            text += f"Page {page_num + 1}:\n{cleaned_text}\n\n"
+            with open(pdf_path, "rb") as f:
+                reader = PyPDF2.PdfReader(f)
+                for i, page in enumerate(reader.pages):
+                    page_text = page.extract_text() or ""
+                    cleaned = self.clean_pdf_content(page_text)
+                    if cleaned:
+                        text += f"Page {i+1}:\n{cleaned}\n\n"
         except Exception as e:
             print(f"Error reading {pdf_path}: {e}")
-        
         return self.clean_pdf_content(text)
-    
-    def load_documents(self, folder_path):
-        if self.collection.count() > 0:
-            print(f"📚 Documents déjà chargés ({self.collection.count()} chunks)")
+
+    # ---------------------- Load docs into FAISS (unchanged) ----------------------
+    def load_documents(self, folder_path: str):
+        if self.index.ntotal > 0:
+            print(f"📚 Documents already loaded ({self.index.ntotal} chunks)")
             return
-            
-        documents = []
-        print("📄 Traitement des documents...")
-        
-        for filename in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, filename)
+
+        docs = []
+        ids = []
+        print("📄 Processing documents...")
+
+        for fn in os.listdir(folder_path):
+            fp = os.path.join(folder_path, fn)
             content = ""
-            
-            if filename.endswith('.pdf'):
-                print(f"📄 Conversion {filename}...")
-                content = self.extract_pdf_text(file_path)
-            elif filename.endswith('.txt'):
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                content = self.clean_pdf_content(content)
-            else:
+            if fn.endswith(".pdf"):
+                print(f"📄 Converting {fn}...")
+                content = self.extract_pdf_text(fp)
+            elif fn.endswith(".txt"):
+                with open(fp, "r", encoding="utf-8") as f:
+                    content = self.clean_pdf_content(f.read())
+            if not content.strip():
                 continue
-            
-            if content.strip():
-                chunks = self.smart_chunk_text(content)
-                for i, chunk in enumerate(chunks):
-                    if len(chunk.strip()) > 30:
-                        documents.append({
-                            'id': f"{filename}_{i}",
-                            'text': chunk.strip(),
-                            'source': filename
-                        })
-        
-        if documents:
-            print(f"📊 Traitement de {len(documents)} chunks...")
-            texts = [doc['text'] for doc in documents]
-            ids = [doc['id'] for doc in documents]
-            embeddings = self.encoder.encode(texts).tolist()
-            
-            self.collection.add(
-                embeddings=embeddings,
-                documents=texts,
-                ids=ids
-            )
-            print(f"✅ {len(documents)} chunks ajoutés à la base de données")
-            
-    def smart_chunk_text(self, text):
-        """Smart text chunking - optimized for smaller models"""
+
+            for i, chunk in enumerate(self.smart_chunk_text(content)):
+                if len(chunk.strip()) > 30:
+                    docs.append(chunk.strip())
+                    ids.append(f"{fn}_{i}")
+
+        if docs:
+            print(f"📊 Adding {len(docs)} chunks to FAISS...")
+            emb = self.encoder.encode(docs, normalize_embeddings=True)
+            self.index.add(emb)
+            self.docs.extend(docs)
+            self.ids.extend(ids)
+            faiss.write_index(self.index, self.index_path)
+            print("✅ Index saved")
+
+    # ---------------------- Chunking (unchanged) ----------------------
+    def smart_chunk_text(self, text: str):
         if len(text) < 200:
             return [text]
-            
-        chunks = []
-        paragraphs = text.split('\n\n')
-        
-        current_chunk = ""
-        chunk_size = 300 if "llama3.2:1b" in str(self.current_model) else 500
-        
-        for paragraph in paragraphs:
-            paragraph = paragraph.strip()
-            if not paragraph:
+        paras = text.split("\n\n")
+        chunks, cur = [], ""
+        limit = 500  # Reasonable limit for most models
+        for p in paras:
+            p = p.strip()
+            if not p:
                 continue
-                
-            if len(current_chunk + paragraph) > chunk_size:
-                if current_chunk:
-                    chunks.append(current_chunk.strip())
-                current_chunk = paragraph
+            if len(cur + p) > limit:
+                if cur:
+                    chunks.append(cur.strip())
+                cur = p
             else:
-                current_chunk += "\n\n" + paragraph if current_chunk else paragraph
-        
-        if current_chunk:
-            chunks.append(current_chunk.strip())
-            
+                cur += ("\n\n" if cur else "") + p
+        if cur:
+            chunks.append(cur.strip())
         return chunks
 
-    def is_context_relevant(self, question: str, context: str) -> bool:
-        """Check if retrieved context is actually relevant to the question"""
-        if not context or len(context.strip()) < 20:
+    # ---------------------- Helpers (unchanged) ----------------------
+    def is_context_relevant(self, question: str, ctx: str) -> bool:
+        if not ctx or len(ctx.strip()) < 20:
             return False
-            
-        question_words = set(re.findall(r'\b\w+\b', question.lower()))
-        context_words = set(re.findall(r'\b\w+\b', context.lower()))
-        
-        # Remove common French words that don't indicate relevance
-        common_words = {'le', 'la', 'les', 'un', 'une', 'des', 'de', 'du', 'et', 'à', 'il', 'elle', 'dans', 'pour', 'avec', 'sur', 'par'}
-        question_words -= common_words
-        context_words -= common_words
-        
-        if not question_words:
+        qw = set(re.findall(r"\b\w+\b", question.lower()))
+        cw = set(re.findall(r"\b\w+\b", ctx.lower()))
+        stop = {"le","la","les","un","une","des","de","du","et","à","il","elle","dans","pour","avec","sur","par"}
+        qw -= stop
+        cw -= stop
+        if not qw:
             return False
-            
-        # Calculate overlap
-        overlap = len(question_words.intersection(context_words))
-        relevance_score = overlap / len(question_words)
-        
-        print(f"🔍 Relevance score: {relevance_score:.2f} (threshold: 0.2)")
-        return relevance_score >= 0.2
+        overlap = len(qw & cw) / len(qw)
+        print(f"🔍 Relevance score: {overlap:.2f} (thr=0.2)")
+        return overlap >= 0.2
 
-    def is_simple_greeting(self, question: str) -> bool:
-        """Check if the question is a simple greeting"""
-        question_clean = re.sub(r'[^\w\s]', '', question.lower()).strip()
-        words = question_clean.split()
-        
-        # Single word greetings
-        if len(words) == 1 and words[0] in self.simple_greetings:
+    def is_simple_greeting(self, q: str) -> bool:
+        clean = re.sub(r"[^\w\s]", "", q.lower()).strip()
+        if clean in self.simple_greetings:
             return True
-            
-        # Simple greeting patterns
-        greeting_patterns = [
-            r'^(salut|bonjour|bonsoir|hello|hi|hey|coucou)$',
-            r'^(salut|bonjour|bonsoir|hello|hi|hey|coucou)\s+(comment|ça)\s+va',
-            r'^comment\s+allez\s+vous',
-            r'^comment\s+ça\s+va'
+        pats = [
+            r"^(salut|bonjour|bonsoir|hello|hi|hey|coucou)\s*(comment|ça)?",
+            r"^comment\s+allez\s+vous",
+            r"^comment\s+ça\s+va"
         ]
-        
-        for pattern in greeting_patterns:
-            if re.match(pattern, question_clean):
-                return True
-                
-        return False
+        return any(re.match(p, clean) for p in pats)
 
-    def query_local_llama(self, question: str, context: str = "") -> Optional[str]:
-        """Query local Llama model with anti-hallucination measures"""
-        
-        if not self.current_model:
+    # ---------------------- OpenRouter Generation ----------------------
+    def query_openrouter(self, question: str, ctx: str = "") -> Optional[str]:
+        if not self.openrouter_api_key or not self.current_model:
             return None
-        
-        # Use different prompts based on whether we have relevant context
-        if context.strip() and self.is_context_relevant(question, context):
-            prompt = f"""Tu es FrancoBot, un professeur de français. Réponds seulement avec les informations du cours ci-dessous.
-
-CONTENU DU COURS:
-{context}
+            
+        # Construct the prompt
+        if ctx.strip() and self.is_context_relevant(question, ctx):
+            system_prompt = """Tu es FrancoBot, un professeur de français expérimenté. Utilise uniquement les informations du contenu de cours fourni pour répondre aux questions. Sois précis, pédagogique et concis."""
+            user_prompt = f"""CONTENU DU COURS:
+{ctx}
 
 QUESTION: {question}
 
-RÈGLES IMPORTANTES:
-- Utilise SEULEMENT les informations du contenu du cours ci-dessus
-- Utilise ton connaissance générale du français pour expliquer, pas pour répondre
-- Si le contenu ne répond pas à la question, dis "Je n'ai pas cette information dans le cours"
-- Ne mélange pas avec tes connaissances générales
-- Reste focalisé sur la question
+Réponds en utilisant uniquement les informations du cours ci-dessus."""
+        else:
+            system_prompt = "Tu es FrancoBot, un professeur de français expérimenté. Réponds de manière pédagogique et concise."
+            user_prompt = question
+
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://github.com/your-repo",  # Optional: for analytics
+            "X-Title": "French RAG Assistant"  # Optional: for analytics
+        }
+
+        payload = {
+            "model": self.current_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "max_tokens": 200,
+            "temperature": 0.1,
+            "top_p": 0.7,
+            "frequency_penalty": 0.3,
+            "presence_penalty": 0.1
+        }
+
+        try:
+            print(f"🌐 Generating with OpenRouter ({self.current_model})...")
+            response = requests.post(
+                self.openrouter_url,
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                if 'choices' in data and len(data['choices']) > 0:
+                    answer = data['choices'][0]['message']['content'].strip()
+                    if self.is_response_valid(answer, question):
+                        return answer
+                    else:
+                        print("⚠️ Response validation failed")
+                        return None
+                else:
+                    print("❌ No choices in OpenRouter response")
+            else:
+                error_msg = response.text
+                print(f"❌ OpenRouter API error {response.status_code}: {error_msg}")
+                
+        except requests.exceptions.Timeout:
+            print("⏰ OpenRouter request timeout")
+        except Exception as e:
+            print(f"❌ OpenRouter error: {e}")
+            
+        return None
+
+    # ---------------------- Ollama Generation (for fallback) ----------------------
+    def query_local_llama(self, question: str, ctx: str = "") -> Optional[str]:
+        if not self.current_model:
+            return None
+        if ctx.strip() and self.is_context_relevant(question, ctx):
+            prompt = f"""Tu es FrancoBot, un professeur de français. Réponds uniquement avec les infos du cours.
+
+CONTENU DU COURS:
+{ctx}
+
+QUESTION: {question}
 
 RÉPONSE:"""
         else:
-            prompt = f"""Tu es FrancoBot, un professeur de français.
-
-QUESTION: {question}
-
-Donne une réponse claire, expliquée et concise.
-
-RÉPONSE:"""
-
-        # Anti-hallucination settings - very conservative
+            prompt = f"Tu es FrancoBot, un professeur de français.\n\nQUESTION: {question}\n\nRÉPONSE:"
+        
         payload = {
             "model": self.current_model,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.1,      # Much lower - reduces creativity/hallucination
-                "num_predict": 150,      # Shorter responses
-                "top_p": 0.7,           # More focused
-                "top_k": 10,            # Much more constrained vocabulary
-                "repeat_penalty": 1.3,   # Strongly discourage repetition
+                "temperature": 0.1, "num_predict": 150, "top_p": 0.7,
+                "top_k": 10, "repeat_penalty": 1.3,
                 "stop": ["\n\nQUESTION:", "\n\nRÈGLES:", "CONTENU:", "###", "\n\n\n"]
             }
         }
-        
         try:
-            print(f"🦙 Génération avec {self.current_model} (mode anti-hallucination)...")
-            
-            response = requests.post(
-                self.ollama_url,
-                json=payload,
-                timeout=20
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                answer = result.get("response", "").strip()
-                
-                # Clean up response
-                answer = re.sub(r'^RÉPONSE:\s*', '', answer, flags=re.IGNORECASE)
-                answer = re.sub(r'\n\n+', '\n\n', answer)
-                
-                # Quality check - reject obviously bad responses
-                if self.is_response_valid(answer, question):
-                    print(f"✅ Réponse valide ({len(answer)} caractères)")
-                    return answer
-                else:
-                    print("❌ Réponse rejetée (qualité insuffisante)")
-                    return None
-                    
+            print(f"🦙 Generating with Ollama ({self.current_model})...")
+            r = requests.post(self.ollama_url, json=payload, timeout=20)
+            if r.status_code == 200:
+                ans = r.json().get("response", "").strip()
+                ans = re.sub(r"^RÉPONSE:\s*", "", ans, flags=re.I)
+                return ans if self.is_response_valid(ans, question) else None
             else:
-                print(f"❌ Erreur Ollama {response.status_code}")
-                
+                print(f"❌ Ollama error {r.status_code}")
         except requests.exceptions.Timeout:
-            print("⏰ Timeout")
+            print("⏰ Ollama timeout")
         except Exception as e:
-            print(f"❌ Erreur: {str(e)}")
-        
+            print(f"❌ Ollama error: {e}")
         return None
 
-    def is_response_valid(self, response: str, question: str) -> bool:
-        """Validate response quality to reject hallucinations"""
-        if not response or len(response) < 5:
+    def is_response_valid(self, resp: str, q: str) -> bool:
+        if not resp or len(resp) < 5:
             return False
-            
-        # Reject responses with obvious hallucination indicators
-        hallucination_indicators = [
-            'giraffe', 'video game', 'resident evil', 'japan', 'flop', 'carton',
-            'spectacle', 'adolescent', 'aujourd\'hui dans notre cours',
-            'premièrement', 'ensuite', 'maintenant je vais vous poser'
-        ]
-        
-        response_lower = response.lower()
-        for indicator in hallucination_indicators:
-            if indicator in response_lower:
-                print(f"🚫 Hallucination détectée: '{indicator}'")
-                return False
-        
-        # Reject overly long responses from small models (usually a bad sign)
-        if "llama3.2:1b" in str(self.current_model) and len(response) > 300:
-            print("🚫 Réponse trop longue pour ce modèle")
+        bad = ['giraffe','video game','resident evil','japan','flop','carton','spectacle','adolescent']
+        if any(b in resp.lower() for b in bad):
             return False
-            
-        # For greetings, expect simple responses
-        if self.is_simple_greeting(question) and len(response) > 150:
-            print("🚫 Réponse trop complexe pour un salut")
+        if self.is_simple_greeting(q) and len(resp) > 150:
             return False
-            
         return True
 
+    # ---------------------- Main query method ----------------------
     def query(self, question: str, n_results: int = 2) -> str:
-        """Main query method with intelligent context filtering"""
-        
-        # Handle simple greetings without document search
         if self.is_simple_greeting(question):
-            print("👋 Salut simple détecté - pas de recherche documentaire")
-            if self.use_local_llama and self.current_model:
-                response = self.query_local_llama(question, "")
-                if response:
-                    return response
+            # Handle simple greetings
+            if self.use_openrouter:
+                r = self.query_openrouter(question, "")
+            else:
+                r = self.query_local_llama(question, "")
+            if r:
+                return r
             return "Bonjour ! Je suis votre professeur de français. Comment puis-je vous aider aujourd'hui ?"
-        
-        # Get relevant context from documents
+
         context = ""
         try:
-            if self.collection.count() > 0:
-                query_embedding = self.encoder.encode([question]).tolist()
-                results = self.collection.query(
-                    query_embeddings=query_embedding,
-                    n_results=n_results
-                )
-                if results['documents'][0]:
-                    raw_context = "\n".join(results['documents'][0])
-                    # Only use context if it's actually relevant
-                    if self.is_context_relevant(question, raw_context):
-                        context = raw_context
-                        print(f"📚 Contexte pertinent: {len(context)} caractères")
-                    else:
-                        print("📚 Contexte non pertinent - ignoré")
+            # Retrieve relevant context from FAISS
+            if self.index.ntotal > 0:
+                qvec = self.encoder.encode([question], normalize_embeddings=True)
+                D, I = self.index.search(qvec, n_results)
+                cands = [self.docs[i] for i in I[0] if i >= 0 and i < len(self.docs)]
+                raw_ctx = "\n".join(cands)
+                if self.is_context_relevant(question, raw_ctx):
+                    context = raw_ctx
+                    print(f"📚 Relevant context: {len(context)} characters")
+                else:
+                    print("📚 Context ignored (not relevant)")
         except Exception as e:
-            print(f"⚠️ Erreur recherche documents: {e}")
-        
-        # Try local Llama
-        if self.use_local_llama and self.current_model:
-            response = self.query_local_llama(question, context)
-            if response:
-                return response
-            else:
-                print("❌ Le modèle n'a pas pu générer une réponse valide")
-                return "Je n'arrive pas à répondre clairement à cette question. Pouvez-vous la reformuler ?"
-        else:
-            return "Aucun modèle disponible. Veuillez installer et démarrer Ollama."
+            print(f"⚠️ Retrieval error: {e}")
 
-# Testing
+        # Generate response
+        if self.use_openrouter:
+            ans = self.query_openrouter(question, context)
+        else:
+            ans = self.query_local_llama(question, context)
+            
+        return ans or "Je n'arrive pas à répondre clairement à cette question. Pouvez-vous la reformuler ?"
+
+# ---------------------- Test ----------------------
 if __name__ == "__main__":
-    print("🦙 Assistant Français Anti-Hallucination")
-    print("=" * 50)
+    print("🌐 French Assistant with OpenRouter/FAISS")
     
-    rag = FrenchRAG(use_local_llama=True)
+    # Initialize with OpenRouter (set your API key as environment variable)
+    rag = FrenchRAG(use_openrouter=True)
     
-    if os.path.exists('course_materials'):
-        rag.load_documents('course_materials')
+    if os.path.exists("course_materials"):
+        rag.load_documents("course_materials")
     else:
-        print("📂 Aucun dossier course_materials trouvé")
-    
-    # Test different types of queries
-    test_questions = [
-        "Salut",
-        "Bonjour comment ça va ?",
-        "Explique-moi le passé composé",
+        print("📂 No course_materials folder found")
+
+    # Test queries
+    test_queries = [
+        "Salut", 
+        "Explique-moi le passé composé", 
         "Quelle est la différence entre être et avoir ?"
     ]
     
-    for question in test_questions:
-        print(f"\n{'='*60}")
-        print(f"Q: {question}")
-        print(f"{'='*60}")
-        response = rag.query(question)
-        print(response)
-        print()
+    for q in test_queries:
+        print("\n" + "="*40)
+        print("Q:", q)
+        print("A:", rag.query(q))
