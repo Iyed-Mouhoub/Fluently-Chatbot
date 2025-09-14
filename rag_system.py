@@ -24,19 +24,23 @@ class FrenchRAG:
         self.use_local_llama = use_local_llama
         self.ollama_url = "http://localhost:11434/api/generate"
         
-        # Updated models list with Llama 3.1:8b as priority
         self.models = [
-            "llama3.1:8b",      # 4.9GB - High quality model you have
-            "llama3.2:3b",      # 2.0GB - Light but capable  
-            "llama3.2:1b",      # 1.3GB - Very lightweight
-            "tinyllama",        # 637MB - Ultra lightweight
-            "phi3:mini",        # 2.3GB - Microsoft's efficient model
-            "gemma:2b",         # 1.4GB - Google's lightweight model
-            "mistral",          # Fallback option
+            "llama3.2:1b",
+            "llama3.1:8b", 
+            "llama3.2:3b",
+            "tinyllama",
+            "phi3:mini",
+            "gemma:2b",
+            "mistral",
         ]
         
         self.current_model = None
         self.check_ollama_models()
+        
+        # Define simple greetings that don't need document search
+        self.simple_greetings = {
+            'salut', 'bonjour', 'bonsoir', 'hello', 'hi', 'hey', 'coucou'
+        }
     
     def check_ollama_models(self):
         """Check which models are available in Ollama"""
@@ -44,14 +48,12 @@ class FrenchRAG:
             return
             
         try:
-            # Check if Ollama is running
             response = requests.get("http://localhost:11434/api/tags", timeout=5)
             if response.status_code == 200:
                 available_models = [model['name'] for model in response.json().get('models', [])]
                 print(f"🦙 Ollama détecté avec {len(available_models)} modèles")
                 print(f"📋 Modèles disponibles: {', '.join(available_models)}")
                 
-                # Find the first available model from our preference list
                 for model in self.models:
                     if any(model in available for available in available_models):
                         self.current_model = model
@@ -59,54 +61,18 @@ class FrenchRAG:
                         break
                 
                 if not self.current_model and available_models:
-                    # Use the first available model
                     self.current_model = available_models[0]
-                    print(f"🔋 Utilisation du modèle disponible: {self.current_model}")
+                    print(f"📋 Utilisation du modèle disponible: {self.current_model}")
                 elif not self.current_model:
-                    print("⚠️ Aucun modèle trouvé. Utilisation du mode éducatif.")
-                    self.suggest_model_installation()
+                    print("⚠️ Aucun modèle trouvé.")
                     
             else:
                 print("❌ Ollama non détecté")
-                self.suggest_ollama_installation()
                 
         except requests.exceptions.ConnectionError:
             print("🔌 Ollama non démarré")
-            self.suggest_ollama_installation()
         except Exception as e:
             print(f"❌ Erreur Ollama: {e}")
-            
-    def suggest_ollama_installation(self):
-        """Provide installation instructions"""
-        print("""
-🦙 INSTALLATION OLLAMA (Recommandé):
-
-1. Télécharger Ollama:
-   https://ollama.ai/download
-
-2. Installer un modèle:
-   ollama pull llama3.1:8b     # Haute qualité (vous l'avez déjà!)
-   ollama pull llama3.2:1b     # 1.3GB - Très rapide
-   ollama pull tinyllama       # 637MB - Ultra léger
-
-3. Démarrer Ollama:
-   ollama serve
-
-4. Redémarrer l'application
-        """)
-    
-    def suggest_model_installation(self):
-        """Suggest installing a model"""
-        print("""
-💡 INSTALLER UN MODÈLE:
-
-Dans votre terminal:
-ollama pull llama3.1:8b    # Haute qualité (recommandé)
-ollama pull llama3.2:1b    # Léger: seulement 1.3GB
-ollama pull tinyllama      # Ultra léger: 637MB
-
-Puis redémarrez cette application.
-        """)
 
     def clean_pdf_content(self, text):
         """Clean messy PDF content"""
@@ -119,7 +85,7 @@ Puis redémarrez cette application.
         text = re.sub(r'Prof : Labed Nada', '', text)
         text = re.sub(r'Niveau intermédiaire B1/B2', '', text)
         text = re.sub(r'ATELIER DE.*?CONVERSATION', 'Atelier de conversation', text)
-        text = re.sub(r'🔵|🎯', '', text)  # Remove emojis
+        text = re.sub(r'🔵|🎯', '', text)
         
         # Remove excessive whitespace and duplicates
         lines = []
@@ -130,7 +96,7 @@ Puis redémarrez cette application.
                 lines.append(line)
                 seen_lines.add(line)
         
-        return '\n'.join(lines[:3])  # Limit to first 3 unique lines
+        return '\n'.join(lines[:3])
         
     def extract_pdf_text(self, pdf_path):
         """Extract and clean text from PDF"""
@@ -151,7 +117,6 @@ Puis redémarrez cette application.
         return self.clean_pdf_content(text)
     
     def load_documents(self, folder_path):
-        # Check if already loaded
         if self.collection.count() > 0:
             print(f"📚 Documents déjà chargés ({self.collection.count()} chunks)")
             return
@@ -197,7 +162,7 @@ Puis redémarrez cette application.
             print(f"✅ {len(documents)} chunks ajoutés à la base de données")
             
     def smart_chunk_text(self, text):
-        """Smart text chunking - larger chunks for Llama 3.1:8b"""
+        """Smart text chunking - optimized for smaller models"""
         if len(text) < 200:
             return [text]
             
@@ -205,8 +170,7 @@ Puis redémarrez cette application.
         paragraphs = text.split('\n\n')
         
         current_chunk = ""
-        # Larger chunks for the more capable Llama 3.1:8b model
-        chunk_size = 1000 if "llama3.1:8b" in str(self.current_model) else 600
+        chunk_size = 300 if "llama3.2:1b" in str(self.current_model) else 500
         
         for paragraph in paragraphs:
             paragraph = paragraph.strip()
@@ -225,239 +189,225 @@ Puis redémarrez cette application.
             
         return chunks
 
+    def is_context_relevant(self, question: str, context: str) -> bool:
+        """Check if retrieved context is actually relevant to the question"""
+        if not context or len(context.strip()) < 20:
+            return False
+            
+        question_words = set(re.findall(r'\b\w+\b', question.lower()))
+        context_words = set(re.findall(r'\b\w+\b', context.lower()))
+        
+        # Remove common French words that don't indicate relevance
+        common_words = {'le', 'la', 'les', 'un', 'une', 'des', 'de', 'du', 'et', 'à', 'il', 'elle', 'dans', 'pour', 'avec', 'sur', 'par'}
+        question_words -= common_words
+        context_words -= common_words
+        
+        if not question_words:
+            return False
+            
+        # Calculate overlap
+        overlap = len(question_words.intersection(context_words))
+        relevance_score = overlap / len(question_words)
+        
+        print(f"🔍 Relevance score: {relevance_score:.2f} (threshold: 0.2)")
+        return relevance_score >= 0.2
+
+    def is_simple_greeting(self, question: str) -> bool:
+        """Check if the question is a simple greeting"""
+        question_clean = re.sub(r'[^\w\s]', '', question.lower()).strip()
+        words = question_clean.split()
+        
+        # Single word greetings
+        if len(words) == 1 and words[0] in self.simple_greetings:
+            return True
+            
+        # Simple greeting patterns
+        greeting_patterns = [
+            r'^(salut|bonjour|bonsoir|hello|hi|hey|coucou)$',
+            r'^(salut|bonjour|bonsoir|hello|hi|hey|coucou)\s+(comment|ça)\s+va',
+            r'^comment\s+allez\s+vous',
+            r'^comment\s+ça\s+va'
+        ]
+        
+        for pattern in greeting_patterns:
+            if re.match(pattern, question_clean):
+                return True
+                
+        return False
+
     def query_local_llama(self, question: str, context: str = "") -> Optional[str]:
-        """Query local Llama model via Ollama - optimized for Llama 3.1:8b"""
+        """Query local Llama model with anti-hallucination measures"""
         
         if not self.current_model:
             return None
-            
-        # Enhanced prompt for the more capable Llama 3.1:8b model
-        if context:
-            prompt = f"""Tu es un professeur de français expérimenté qui enseigne le niveau B2. Tu es patient, pédagogique et tu donnes des explications claires avec de bons exemples.
+        
+        # Use different prompts based on whether we have relevant context
+        if context.strip() and self.is_context_relevant(question, context):
+            prompt = f"""Tu es FrancoBot, un professeur de français. Réponds seulement avec les informations du cours ci-dessous.
 
-Contexte du cours:
-{context[:600]}
+CONTENU DU COURS:
+{context}
 
-Question de l'étudiant: {question}
+QUESTION: {question}
 
-Instructions:
-- Réponds en français uniquement
-- Sois pédagogique et structuré
-- Donne des exemples concrets et pratiques  
-- Si c'est de la grammaire, explique les règles clairement
-- Si c'est du vocabulaire, montre l'usage en contexte
-- Si c'est un dialogue, crée une conversation réaliste
-- Adapte ton niveau au B2 (intermédiaire-avancé)
+RÈGLES IMPORTANTES:
+- Utilise SEULEMENT les informations du contenu du cours ci-dessus
+- Utilise ton connaissance générale du français pour expliquer, pas pour répondre
+- Si le contenu ne répond pas à la question, dis "Je n'ai pas cette information dans le cours"
+- Ne mélange pas avec tes connaissances générales
+- Reste focalisé sur la question
 
-Réponse:"""
+RÉPONSE:"""
         else:
-            prompt = f"""Tu es un professeur de français expérimenté qui enseigne le niveau B2.
+            prompt = f"""Tu es FrancoBot, un professeur de français.
 
-Question de l'étudiant: {question}
+QUESTION: {question}
 
-Instructions:
-- Réponds en français uniquement
-- Sois pédagogique et structuré
-- Donne des exemples concrets
-- Adapte au niveau B2
+Donne une réponse claire, expliquée et concise.
 
-Réponse:"""
+RÉPONSE:"""
 
-        # Optimized settings for Llama 3.1:8b
+        # Anti-hallucination settings - very conservative
         payload = {
             "model": self.current_model,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "temperature": 0.7,
-                "num_predict": 400 if "llama3.1:8b" in str(self.current_model) else 200,
-                "top_p": 0.9,
-                "stop": ["\n\nQuestion:", "\n\nInstructions:", "Étudiant:"]
+                "temperature": 0.1,      # Much lower - reduces creativity/hallucination
+                "num_predict": 150,      # Shorter responses
+                "top_p": 0.7,           # More focused
+                "top_k": 10,            # Much more constrained vocabulary
+                "repeat_penalty": 1.3,   # Strongly discourage repetition
+                "stop": ["\n\nQUESTION:", "\n\nRÈGLES:", "CONTENU:", "###", "\n\n\n"]
             }
         }
         
         try:
-            print(f"🦙 Génération avec {self.current_model}...")
+            print(f"🦙 Génération avec {self.current_model} (mode anti-hallucination)...")
             
             response = requests.post(
                 self.ollama_url,
                 json=payload,
-                timeout=60  # Longer timeout for larger model
+                timeout=20
             )
             
             if response.status_code == 200:
                 result = response.json()
                 answer = result.get("response", "").strip()
                 
-                if answer and len(answer) > 20:
-                    print(f"✅ Réponse générée ({len(answer)} caractères)")
-                    model_display = "Llama 3.1 8B" if "llama3.1:8b" in str(self.current_model) else self.current_model
-                    return f"🦙 **{model_display}:**\n\n{answer}"
+                # Clean up response
+                answer = re.sub(r'^RÉPONSE:\s*', '', answer, flags=re.IGNORECASE)
+                answer = re.sub(r'\n\n+', '\n\n', answer)
+                
+                # Quality check - reject obviously bad responses
+                if self.is_response_valid(answer, question):
+                    print(f"✅ Réponse valide ({len(answer)} caractères)")
+                    return answer
+                else:
+                    print("❌ Réponse rejetée (qualité insuffisante)")
+                    return None
+                    
             else:
-                print(f"❌ Erreur Ollama {response.status_code}: {response.text[:100]}")
+                print(f"❌ Erreur Ollama {response.status_code}")
                 
         except requests.exceptions.Timeout:
-            print("⏰ Timeout - Le modèle prend trop de temps")
+            print("⏰ Timeout")
         except Exception as e:
             print(f"❌ Erreur: {str(e)}")
         
         return None
 
-    def get_educational_fallback(self, question: str, context: str = "") -> str:
-        """Educational fallback when local model fails"""
-        question_lower = question.lower()
-        clean_context = self.clean_pdf_content(context) if context else ""
+    def is_response_valid(self, response: str, question: str) -> bool:
+        """Validate response quality to reject hallucinations"""
+        if not response or len(response) < 5:
+            return False
+            
+        # Reject responses with obvious hallucination indicators
+        hallucination_indicators = [
+            'giraffe', 'video game', 'resident evil', 'japan', 'flop', 'carton',
+            'spectacle', 'adolescent', 'aujourd\'hui dans notre cours',
+            'premièrement', 'ensuite', 'maintenant je vais vous poser'
+        ]
         
-        # Installation guide for users
-        if any(word in question_lower for word in ['salut', 'bonjour', 'hello', 'aide', 'aider', 'apprendre']):
-            model_status = f"🦙 Modèle local: {self.current_model}" if self.current_model else "❌ Aucun modèle local détecté"
+        response_lower = response.lower()
+        for indicator in hallucination_indicators:
+            if indicator in response_lower:
+                print(f"🚫 Hallucination détectée: '{indicator}'")
+                return False
+        
+        # Reject overly long responses from small models (usually a bad sign)
+        if "llama3.2:1b" in str(self.current_model) and len(response) > 300:
+            print("🚫 Réponse trop longue pour ce modèle")
+            return False
             
-            installation_guide = ""
-            if not self.current_model:
-                installation_guide = """
-**🔧 Pour activer l'IA locale:**
-1. Vérifier: `ollama list` 
-2. Si pas de modèles: `ollama pull llama3.1:8b`
-3. Démarrer: `ollama serve`
-4. Redémarrer cette app"""
+        # For greetings, expect simple responses
+        if self.is_simple_greeting(question) and len(response) > 150:
+            print("🚫 Réponse trop complexe pour un salut")
+            return False
             
-            return f"""Salut ! 🇫🇷 Assistant Français B2 avec IA Llama
+        return True
 
-**Statut:** {model_status}
-
-**Je peux vous aider avec :**
-• 📚 **Grammaire** : conjugaisons, temps, syntaxe
-• 🗣️ **Conversation** : dialogues pratiques
-• 📖 **Vocabulaire** : mots, expressions, nuances
-• 🎯 **Exercices** : pratique interactive
-
-{installation_guide}
-
-**Contenu de votre cours :**
-{clean_context if clean_context else "Cours de français niveau B1/B2"}
-
-**💡 Questions d'exemple :**
-• "Explique-moi le passé composé"
-• "Différence entre 'cependant' et 'pourtant'"
-• "Créons un dialogue au restaurant"
-
-**🎯 Avec Llama 3.1:8b :** Réponses détaillées et de haute qualité ! 🚀"""
-
-        # Specific French topics with good examples
-        elif 'passé composé' in question_lower or 'passé' in question_lower:
-            return """⏰ **Le Passé Composé - Niveau B2**
-
-**🏗️ Formation :** AUXILIAIRE + PARTICIPE PASSÉ
-
-**Auxiliaires :**
-• **AVOIR** (majorité) : J'ai mangé, elle a fini, nous avons vu
-• **ÊTRE** (16 verbes) : Je suis allé(e), elle est née, ils sont morts
-
-**⚖️ Accords du participe passé :**
-• Avec ÊTRE : accord avec le sujet → "Elle est partie"
-• Avec AVOIR : accord avec COD antéposé → "La lettre qu'il a écrite"
-
-**🎯 Les 16 verbes avec ÊTRE :**
-Aller, venir, entrer, sortir, arriver, partir, monter, descendre, naître, mourir, rester, tomber, retourner, passer, devenir + tous les pronominaux
-
-**✏️ Exercice rapide :**
-1. Marie ____ (partir) hier → est partie
-2. Les livres que j'____ (lire) → ai lus  
-3. Nous ____ (se réveiller) tôt → nous sommes réveillé(e)s
-
-**💡 Astuce :** "DR & MRS VANDERTRAMP" pour mémoriser les verbes avec être !"""
-
-        elif any(word in question_lower for word in ['dialogue', 'conversation', 'restaurant', 'café']):
-            return """🗣️ **Dialogue au Restaurant - Niveau B2**
-
-**Situation :** Dîner dans un restaurant français
-
-**Serveur :** Bonsoir, avez-vous réservé ?
-**Client :** Oui, une table pour deux au nom de Martin.
-**Serveur :** Parfait, suivez-moi. Voici la carte.
-**Client :** Merci. Que me conseillez-vous comme entrée ?
-**Serveur :** Je vous recommande la salade de chèvre chaud, elle est excellente.
-**Client :** D'accord, et comme plat principal ?
-**Serveur :** Le saumon grillé aux légumes de saison est très apprécié.
-**Client :** Parfait. Pour les boissons ?
-**Serveur :** Puis-je vous suggérer un vin blanc sec ?
-**Client :** Excellente idée. L'addition, s'il vous plaît.
-
-**🎯 Expressions utiles :**
-• "Que me conseillez-vous ?" (demander conseil)
-• "Je vous recommande..." (conseiller)
-• "Puis-je vous suggérer..." (suggestion polie)
-• "C'est délicieux !" (compliment)
-
-**💡 Registre B2 :** Utilisez le vouvoiement et les formules de politesse !"""
-
-        else:
-            return f"""🎓 **Assistant Français B2** (Mode éducatif)
-
-**Votre question :** "{question}"
-
-**🦙 Statut IA locale :** {f"Disponible ({self.current_model})" if self.current_model else "Non configuré"}
-
-**Contenu trouvé :**
-{clean_context if clean_context else "Contenu général de français B2"}
-
-**💡 Sujets que je maîtrise bien :**
-• Grammaire avancée (subjonctif, concordance des temps)
-• Vocabulaire nuancé (registres de langue)
-• Expression écrite et orale
-• Culture et civilisation françaises
-
-**🎯 Questions efficaces :**
-• "Explique-moi [règle grammaticale]"
-• "Différence entre [mot1] et [mot2]"
-• "Comment exprimer [idée] poliment"
-• "Exercice sur [sujet précis]"
-
-**🚀 Modèle recommandé :** Llama 3.1:8b pour des réponses détaillées !
-
-Quelle question précise puis-je traiter pour vous ? 🇫🇷"""
-
-    def query(self, question: str, n_results: int = 3) -> str:
-        """Main query method"""
-        # Get context from documents
+    def query(self, question: str, n_results: int = 2) -> str:
+        """Main query method with intelligent context filtering"""
+        
+        # Handle simple greetings without document search
+        if self.is_simple_greeting(question):
+            print("👋 Salut simple détecté - pas de recherche documentaire")
+            if self.use_local_llama and self.current_model:
+                response = self.query_local_llama(question, "")
+                if response:
+                    return response
+            return "Bonjour ! Je suis votre professeur de français. Comment puis-je vous aider aujourd'hui ?"
+        
+        # Get relevant context from documents
+        context = ""
         try:
-            query_embedding = self.encoder.encode([question]).tolist()
-            results = self.collection.query(
-                query_embeddings=query_embedding,
-                n_results=n_results
-            )
-            context = "\n".join(results['documents'][0]) if results['documents'][0] else ""
-        except:
-            context = ""
+            if self.collection.count() > 0:
+                query_embedding = self.encoder.encode([question]).tolist()
+                results = self.collection.query(
+                    query_embeddings=query_embedding,
+                    n_results=n_results
+                )
+                if results['documents'][0]:
+                    raw_context = "\n".join(results['documents'][0])
+                    # Only use context if it's actually relevant
+                    if self.is_context_relevant(question, raw_context):
+                        context = raw_context
+                        print(f"📚 Contexte pertinent: {len(context)} caractères")
+                    else:
+                        print("📚 Contexte non pertinent - ignoré")
+        except Exception as e:
+            print(f"⚠️ Erreur recherche documents: {e}")
         
-        # Try local Llama first
+        # Try local Llama
         if self.use_local_llama and self.current_model:
-            llama_response = self.query_local_llama(question, context)
-            if llama_response:
-                return llama_response
+            response = self.query_local_llama(question, context)
+            if response:
+                return response
             else:
-                print("🔄 Modèle local indisponible, mode éducatif activé...")
-        
-        # Fallback to educational responses
-        return self.get_educational_fallback(question, context)
+                print("❌ Le modèle n'a pas pu générer une réponse valide")
+                return "Je n'arrive pas à répondre clairement à cette question. Pouvez-vous la reformuler ?"
+        else:
+            return "Aucun modèle disponible. Veuillez installer et démarrer Ollama."
 
-# Usage and testing
+# Testing
 if __name__ == "__main__":
-    print("🦙 Assistant Français avec Llama 3.1:8b")
+    print("🦙 Assistant Français Anti-Hallucination")
     print("=" * 50)
     
-    # Initialize with local Llama
     rag = FrenchRAG(use_local_llama=True)
     
-    # Load documents
     if os.path.exists('course_materials'):
         rag.load_documents('course_materials')
+    else:
+        print("📂 Aucun dossier course_materials trouvé")
     
-    # Test queries
+    # Test different types of queries
     test_questions = [
-        "salut je veux apprendre le français",
-        "Explique-moi le passé composé avec des exemples",
-        "Créons un dialogue au restaurant"
+        "Salut",
+        "Bonjour comment ça va ?",
+        "Explique-moi le passé composé",
+        "Quelle est la différence entre être et avoir ?"
     ]
     
     for question in test_questions:
