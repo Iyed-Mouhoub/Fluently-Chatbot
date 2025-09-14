@@ -50,13 +50,13 @@ class FrenchRAG:
 
         # Model-specific token configurations
         self.model_token_limits = {
-            "anthropic/claude-3-haiku": 4000,
-            "meta-llama/llama-3.1-8b-instruct:free": 3000,
-            "google/gemma-2-9b-it:free": 3000,
-            "microsoft/phi-3-medium-128k-instruct:free": 4000,
-            "microsoft/phi-3-mini-128k-instruct:free": 2000,
-            "mistralai/mistral-7b-instruct:free": 2000,
-            "meta-llama/llama-3.2-3b-instruct:free": 2000
+            "anthropic/claude-3-haiku": 800,
+            "meta-llama/llama-3.1-8b-instruct:free": 600,
+            "google/gemma-2-9b-it:free": 600,
+            "microsoft/phi-3-medium-128k-instruct:free": 800,
+            "microsoft/phi-3-mini-128k-instruct:free": 500,
+            "mistralai/mistral-7b-instruct:free": 500,
+            "meta-llama/llama-3.2-3b-instruct:free": 500
         }
 
         self.current_model = None
@@ -274,16 +274,16 @@ class FrenchRAG:
 
         # Construct the prompt
         if ctx.strip() and self.is_context_relevant(question, ctx):
-            system_prompt = """Tu es FrancoBot, un professeur de français expérimenté. Utilise uniquement les informations du contenu de cours fourni pour répondre aux questions. Sois précis, pédagogique et détaillé. Fournit des explications complètes avec des exemples pratiques."""
+            system_prompt = """Tu es FrancoBot, un professeur de français expérimenté a l'institut Fluently. Fluently offre cette formation pour de differents niveaux. Il s'agit de 20 seances qui durent 2h, dans chaque seance, on entamme des expressions familieres, grammaires, partie orale, et audio/video. Utilise uniquement les informations du contenu de cours fourni pour répondre aux questions. Sois précis, pédagogique et concis. Donne une explication claire avec un exemple."""
 
             user_prompt = f"""CONTENU DU COURS:
 {ctx}
 
 QUESTION: {question}
 
-Réponds en utilisant uniquement les informations du cours ci-dessus. Fournit une explication détaillée avec des exemples."""
+Réponds en utilisant uniquement les informations du cours ci-dessus. Fournit une explication claire et concise."""
         else:
-            system_prompt = "Tu es FrancoBot, un professeur de français expérimenté. Réponds de manière pédagogique et détaillée avec des exemples pratiques."
+            system_prompt = "Tu es FrancoBot, un professeur de français expérimenté. Réponds de manière pédagogique et concise avec un exemple."
             user_prompt = question
 
         headers = {
@@ -345,7 +345,7 @@ Réponds en utilisant uniquement les informations du cours ci-dessus. Fournit un
             return None
 
         if ctx.strip() and self.is_context_relevant(question, ctx):
-            prompt = f"""Tu es FrancoBot, un professeur de français. Réponds uniquement avec les infos du cours. Fournit des explications détaillées avec des exemples.
+            prompt = f"""Tu es FrancoBot, un professeur de français a l'institut Fluently. Réponds uniquement avec les infos du cours. Sois clair et concis dans tes explications. Sois clair, concis et pertinent.
 
 CONTENU DU COURS:
 {ctx}
@@ -354,7 +354,7 @@ QUESTION: {question}
 
 RÉPONSE:"""
         else:
-            prompt = f"Tu es FrancoBot, un professeur de français. Réponds de manière pédagogique et détaillée avec des exemples pratiques.\n\nQUESTION: {question}\n\nRÉPONSE:"
+            prompt = f"Tu es FrancoBot, un professeur de français. Réponds de manière pédagogique et concise avec un exemple.\n\nQUESTION: {question}\n\nRÉPONSE:"
 
         payload = {
             "model": self.current_model,
