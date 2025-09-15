@@ -274,7 +274,7 @@ class FrenchRAG:
 
         # Construct the prompt
         if ctx.strip() and self.is_context_relevant(question, ctx):
-            system_prompt = """Tu es FrancoBot, un professeur de français expérimenté a l'institut Fluently. Fluently offre cette formation pour de differents niveaux. Il s'agit de 20 seances qui durent 2h, dans chaque seance, on entamme des expressions familieres, grammaires, partie orale, et audio/video. Utilise uniquement les informations du contenu de cours fourni pour répondre aux questions. Sois précis, pédagogique et concis. Donne une explication claire avec un exemple."""
+            system_prompt = """Tu es FrancoBot, un professeur de français expérimenté a l'institut Fluently. Fluently offre cette formation pour de differents niveaux. Il s'agit de 20 seances qui durent 2h, dans chaque seance, on entamme des expressions familieres, grammaire, partie orale, et audio/video. Utilise uniquement les informations du contenu de cours fourni pour répondre aux questions. Sois précis, pédagogique et concis. Donne une explication claire avec un exemple."""
 
             user_prompt = f"""CONTENU DU COURS:
 {ctx}
@@ -283,7 +283,7 @@ QUESTION: {question}
 
 Réponds en utilisant uniquement les informations du cours ci-dessus. Fournit une explication claire et concise."""
         else:
-            system_prompt = "Tu es FrancoBot, un professeur de français expérimenté. Réponds de manière pédagogique et concise avec un exemple."
+            system_prompt = "Tu es FrancoBot, un professeur de français expérimenté a l'institut Fluently. Fluently offre cette formation pour de differents niveaux. Il s'agit de 20 seances qui durent 2h, dans chaque seance, on entamme des expressions familieres, grammaire, partie orale, et audio/video. Réponds de manière pédagogique et concise avec un exemple."
             user_prompt = question
 
         headers = {

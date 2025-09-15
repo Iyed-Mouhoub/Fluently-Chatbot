@@ -1,0 +1,5 @@
+/pdfs
+/course_materials
+.env
+__pycache__
+/venv

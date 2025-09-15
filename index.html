@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🇫🇷 FrancoBot - Assistant Français</title>
+    <title>🇫🇷 FrancoBot</title>
     <style>
         * {
             margin: 0;
@@ -18,6 +18,7 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden; /* Prevent body scroll jumping */
         }
 
         .header {
@@ -29,6 +30,7 @@
             justify-content: space-between;
             flex-shrink: 0;
             z-index: 10;
+            height: 70px; /* Fixed header height */
         }
 
         .header-left {
@@ -64,12 +66,6 @@
             color: #6b7280;
         }
 
-        .tts-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
         .tts-toggle {
             background: #10b981;
             color: white;
@@ -81,6 +77,7 @@
             transition: all 0.2s ease;
             user-select: none;
             outline: none;
+            min-width: 60px; /* Prevent button size changes */
         }
 
         .tts-toggle:hover {
@@ -93,32 +90,11 @@
             cursor: not-allowed;
         }
 
-        .tts-toggle.speaking {
-            background: #ef4444;
-            animation: pulse 1s infinite;
-        }
-
-        .tts-progress {
-            width: 60px;
-            height: 4px;
-            background: #e5e7eb;
-            border-radius: 2px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .tts-progress-bar {
-            height: 100%;
-            background: #10b981;
-            border-radius: 2px;
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
         .status-indicator {
             display: flex;
             align-items: center;
             gap: 6px;
+            min-width: 100px; /* Prevent layout shifts */
         }
 
         .status-dot {
@@ -126,6 +102,7 @@
             height: 8px;
             border-radius: 50%;
             background: currentColor;
+            flex-shrink: 0; /* Prevent dot from shrinking */
         }
 
         .accent-blue { color: #1e40af; }
@@ -142,8 +119,25 @@
         .chat-container {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden; /* Prevent horizontal scroll */
             padding: 0;
             scroll-behavior: smooth;
+            /* Stable scrolling */
+            scrollbar-width: thin;
+            scrollbar-color: #d1d5db #f9fafb;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: #f9fafb;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
         }
 
         .messages-list {
@@ -153,6 +147,8 @@
             min-height: 100%;
             display: flex;
             flex-direction: column;
+            /* Prevent layout jumps */
+            will-change: transform;
         }
 
         .welcome-screen {
@@ -193,7 +189,7 @@
         .example-question:hover {
             background: #f3f4f6;
             border-color: #d1d5db;
-            transform: translateY(-2px);
+            transform: translateY(-1px); /* Reduced movement */
         }
 
         .example-question h4 {
@@ -209,12 +205,16 @@
             margin: 0;
         }
 
+        /* FIXED MESSAGE LAYOUT - NO DÉCALAGE */
         .message {
             margin-bottom: 24px;
             display: flex;
             gap: 12px;
             animation: slideUp 0.3s ease-out;
             position: relative;
+            /* Prevent layout shifts */
+            min-height: 56px; /* Reserve minimum space */
+            align-items: flex-start; /* Stable alignment */
         }
 
         .message.user {
@@ -229,8 +229,11 @@
             align-items: center;
             justify-content: center;
             font-size: 16px;
-            flex-shrink: 0;
+            flex-shrink: 0; /* CRITICAL: Prevent avatar from changing size */
             margin-top: 2px;
+            /* Ensure avatar stays in place */
+            position: relative;
+            z-index: 2;
         }
 
         .message.user .message-avatar {
@@ -243,6 +246,7 @@
             color: white;
         }
 
+        /* STABLE MESSAGE CONTENT - KEY FIX */
         .message-content {
             max-width: calc(100% - 44px);
             padding: 12px 16px;
@@ -252,9 +256,14 @@
             word-break: break-word;
             overflow-wrap: break-word;
             white-space: pre-wrap;
-            max-height: none;
-            overflow: visible;
             position: relative;
+            /* CRITICAL: Prevent content from affecting layout */
+            min-height: 40px; /* Reserve space for content */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            /* Smooth content transitions */
+            transition: none; /* Remove transitions that cause jumps */
         }
 
         .message.user .message-content {
@@ -270,6 +279,29 @@
             border-bottom-left-radius: 4px;
         }
 
+        /* FIXED TYPING INDICATOR - NO LAYOUT SHIFT */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            justify-content: center; /* Center the dots */
+            height: 24px; /* Fixed height to prevent jumps */
+            padding: 8px 0; /* Consistent padding */
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #9ca3af;
+            animation: typing 1.4s infinite ease-in-out;
+            flex-shrink: 0; /* Prevent dot size changes */
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        /* TTS CONTROLS - STABLE POSITIONING */
         .message-tts-container {
             position: absolute;
             top: -12px;
@@ -280,6 +312,8 @@
             pointer-events: none;
             display: flex;
             gap: 4px;
+            /* Prevent layout shifts */
+            transform: translateZ(0); /* Hardware acceleration */
         }
 
         .message.assistant:hover .message-tts-container {
@@ -287,74 +321,38 @@
             pointer-events: all;
         }
 
-        .message-tts-btn {
+        .message-tts-btn, .message-stop-btn {
             width: 28px;
             height: 28px;
             border: none;
             border-radius: 50%;
-            background: #10b981;
             color: white;
             cursor: pointer;
             font-size: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease; /* Only transform, not layout */
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             outline: none;
             user-select: none;
+            /* Prevent button from affecting layout */
+            flex-shrink: 0;
         }
 
-        .message-tts-btn:hover {
-            background: #059669;
-            transform: scale(1.1);
-        }
-
-        .message-tts-btn.speaking {
-            background: #ef4444;
-            animation: pulse 0.8s infinite;
+        .message-tts-btn {
+            background: #10b981;
         }
 
         .message-stop-btn {
-            width: 28px;
-            height: 28px;
-            border: none;
-            border-radius: 50%;
             background: #ef4444;
-            color: white;
-            cursor: pointer;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            outline: none;
-            user-select: none;
         }
 
-        .message-stop-btn:hover {
-            background: #dc2626;
+        .message-tts-btn:hover, .message-stop-btn:hover {
             transform: scale(1.1);
         }
 
-        .typing-indicator {
-            display: flex;
-            gap: 4px;
-            align-items: center;
-        }
-
-        .typing-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #9ca3af;
-            animation: typing 1.4s infinite ease-in-out;
-        }
-
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
+        /* FIXED INPUT AREA - NO MOVEMENT */
         .input-area {
             background: #ffffff;
             border-top: 1px solid #e5e7eb;
@@ -362,6 +360,8 @@
             flex-shrink: 0;
             position: relative;
             z-index: 10;
+            height: auto;
+            min-height: 80px; /* Minimum height to prevent jumps */
         }
 
         .input-container {
@@ -374,6 +374,8 @@
             border: 1px solid #e5e7eb;
             border-radius: 24px;
             padding: 8px 16px;
+            /* Stable container */
+            min-height: 48px; /* Prevent container size changes */
         }
 
         .message-input {
@@ -387,6 +389,8 @@
             min-height: 24px;
             background: transparent;
             font-family: inherit;
+            /* Prevent input from affecting layout */
+            overflow-y: hidden;
         }
 
         .message-input::placeholder {
@@ -397,33 +401,41 @@
             display: flex;
             gap: 8px;
             align-items: center;
+            flex-shrink: 0; /* Prevent controls from shrinking */
         }
 
-        .voice-input-btn {
+        .voice-input-btn, .send-button {
             width: 36px;
             height: 36px;
             border: none;
             border-radius: 50%;
-            background: #dc2626;
             color: white;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease; /* Only transform */
             font-size: 16px;
             outline: none;
             user-select: none;
             position: relative;
             z-index: 5;
+            flex-shrink: 0; /* CRITICAL: Prevent size changes */
         }
 
-        .voice-input-btn:hover {
-            background: #b91c1c;
+        .voice-input-btn {
+            background: #dc2626;
+        }
+
+        .send-button {
+            background: #1e40af;
+        }
+
+        .voice-input-btn:hover, .send-button:hover {
             transform: scale(1.1);
         }
 
-        .voice-input-btn:disabled {
+        .voice-input-btn:disabled, .send-button:disabled {
             background: #9ca3af;
             cursor: not-allowed;
             transform: none;
@@ -434,41 +446,15 @@
             animation: pulse 1s infinite;
         }
 
-        .send-button {
-            width: 36px;
-            height: 36px;
-            border: none;
-            border-radius: 50%;
-            background: #1e40af;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-            outline: none;
-            user-select: none;
-            position: relative;
-            z-index: 5;
-        }
-
-        .send-button:hover {
-            background: #1d4ed8;
-            transform: scale(1.1);
-        }
-
-        .send-button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-        }
-
         .voice-status {
             text-align: center;
             font-size: 12px;
             color: #6b7280;
             margin-top: 8px;
-            min-height: 16px;
+            min-height: 16px; /* Prevent layout shifts */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .voice-status.active {
@@ -476,27 +462,64 @@
             font-weight: 500;
         }
 
+        /* RESPONSIVE DESIGN - STABLE */
         @media (max-width: 768px) {
-            .header { padding: 12px 16px; }
-            .messages-list { padding: 16px 12px; }
-            .input-area { padding: 12px 16px; }
-            .example-questions { grid-template-columns: 1fr; }
+            .header { 
+                padding: 12px 16px;
+                height: 64px; /* Fixed mobile header height */
+            }
+            .messages-list { 
+                padding: 16px 12px;
+            }
+            .input-area { 
+                padding: 12px 16px;
+                min-height: 76px; /* Mobile input area height */
+            }
+            .example-questions { 
+                grid-template-columns: 1fr;
+            }
         }
 
+        /* SMOOTH ANIMATIONS - NO LAYOUT IMPACT */
         @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { 
+                opacity: 0; 
+                transform: translateY(10px); /* Reduced movement */
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
         }
 
         @keyframes typing {
-            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-            40% { transform: scale(1); opacity: 1; }
+            0%, 80%, 100% { 
+                transform: scale(0.8); 
+                opacity: 0.5; 
+            }
+            40% { 
+                transform: scale(1); 
+                opacity: 1; 
+            }
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            0% { 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); 
+            }
+            70% { 
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); 
+            }
+            100% { 
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); 
+            }
+        }
+
+        /* PREVENT ALL LAYOUT SHIFTS */
+        * {
+            /* Hardware acceleration for smooth rendering */
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
         }
 
         button {
@@ -512,18 +535,13 @@
     <header class="header">
         <div class="header-left">
             <div class="logo">🇫🇷</div>
-            <h1 class="header-title">FrancoBot</h1>
+            <h1 class="header-title">FrancoBot </h1>
         </div>
         <div class="header-right">
-            <div class="tts-controls">
-                <button class="tts-toggle" id="ttsToggle">🔊 Auto</button>
-                <div class="tts-progress" id="ttsProgress" style="display: none;">
-                    <div class="tts-progress-bar" id="ttsProgressBar"></div>
-                </div>
-            </div>
+            <button class="tts-toggle" id="ttsToggle">🔊 TTS</button>
             <div class="status-indicator">
                 <span class="status-dot accent-blue"></span>
-                <span id="modelStatus">Connexion...</span>
+                <span id="modelStatus">Prêt</span>
             </div>
             <span id="modelName">Chargement...</span>
         </div>
@@ -533,25 +551,25 @@
         <div class="chat-container" id="chatContainer">
             <div class="messages-list" id="messagesList">
                 <div class="welcome-screen" id="welcomeScreen">
-                    <h2>Bonjour ! Je suis <span class="accent-blue">Franco</span><span class="accent-red">Bot</span> TTS Pro 🇫🇷</h2>
-                    <p>Assistant français avec synthèse vocale améliorée pour les messages longs. <strong>La lecture complète est garantie !</strong></p>
+                    <h2>Bonjour ! Je suis <span class="accent-blue">Franco</span><span class="accent-red">Bot</span> 🇫🇷</h2>
+                    <p>Assistant français  - Interface stable et fluide pour une meilleure expérience.</p>
 
                     <div class="example-questions">
-                        <div class="example-question" onclick="sendExampleQuestion('Explique-moi le passé composé avec plusieurs exemples détaillés')">
+                        <div class="example-question" onclick="sendExampleQuestion('Explique-moi le passé composé')">
                             <h4>📚 Grammaire</h4>
-                            <p>Explique-moi le passé composé avec plusieurs exemples</p>
+                            <p>Le passé composé expliqué</p>
                         </div>
-                        <div class="example-question" onclick="sendExampleQuestion('Donne-moi une explication complète de la différence entre être et avoir avec de nombreux exemples')">
+                        <div class="example-question" onclick="sendExampleQuestion('Quelle est la différence entre être et avoir ?')">
                             <h4>🔄 Conjugaison</h4>
-                            <p>Différence entre être et avoir (réponse longue)</p>
+                            <p>Être vs Avoir</p>
                         </div>
-                        <div class="example-question" onclick="sendExampleQuestion('Raconte-moi une histoire en français avec beaucoup de détails pour tester la lecture longue')">
-                            <h4>📖 Histoire</h4>
-                            <p>Raconte une histoire détaillée (test TTS long)</p>
+                        <div class="example-question" onclick="sendExampleQuestion('Comment dit-on bonjour en français familier ?')">
+                            <h4>💬 Vocabulaire</h4>
+                            <p>Salutations françaises</p>
                         </div>
-                        <div class="example-question" onclick="sendExampleQuestion('Explique-moi tous les temps du verbe en français avec des exemples pour chaque temps')">
-                            <h4>🎯 Grammaire Complète</h4>
-                            <p>Tous les temps verbaux (réponse très longue)</p>
+                        <div class="example-question" onclick="sendExampleQuestion('Donne-moi des conseils pour améliorer mon français')">
+                            <h4>🎯 Conseils</h4>
+                            <p>Améliorer mon français</p>
                         </div>
                     </div>
                 </div>
@@ -563,11 +581,11 @@
                 <textarea 
                     id="messageInput" 
                     class="message-input" 
-                    placeholder="Demandez des explications détaillées pour tester le TTS amélioré..."
+                    placeholder="Posez votre question en français..."
                     rows="1"
                 ></textarea>
                 <div class="input-controls">
-                    <button class="voice-input-btn" id="voiceInputBtn" title="Cliquez pour parler">🎤</button>
+                    <button class="voice-input-btn" id="voiceInputBtn" title="Parler">🎤</button>
                     <button class="send-button" id="sendButton">➤</button>
                 </div>
             </div>
@@ -580,10 +598,7 @@
         let recognition = null;
         let isListening = false;
         let ttsEnabled = true;
-        let currentTTSQueue = [];
-        let currentUtterance = null;
-        let isSpeaking = false;
-        let currentMessageElement = null;
+        let currentSpeech = null;
 
         document.addEventListener('DOMContentLoaded', function() {
             checkServerStatus();
@@ -598,29 +613,17 @@
             const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
             const isChrome = navigator.userAgent.includes('Chrome') || navigator.userAgent.includes('Edg');
 
-            console.log('Voice features:', { hasSTT, hasTTS, isSecure, isChrome });
-
             if (hasSTT && isSecure && isChrome) {
                 initSpeechRecognition();
             } else {
                 document.getElementById('voiceInputBtn').disabled = true;
-                document.getElementById('voiceInputBtn').title = 'Reconnaissance vocale non supportée dans ce navigateur';
-                document.getElementById('voiceInputBtn').style.opacity = '0.5';
+                document.getElementById('voiceInputBtn').title = 'Reconnaissance vocale non supportée';
             }
 
-            if (hasTTS) {
-                // Load voices when available
-                if (window.speechSynthesis.onvoiceschanged !== undefined) {
-                    window.speechSynthesis.onvoiceschanged = () => {
-                        const voices = window.speechSynthesis.getVoices();
-                        const frenchVoices = voices.filter(v => v.lang.startsWith('fr'));
-                        console.log('Voices loaded:', voices.length, 'total,', frenchVoices.length, 'French');
-                    };
-                }
-            } else {
-                document.getElementById('ttsToggle').disabled = true;
-                document.getElementById('ttsToggle').textContent = '🔇 Non supporté';
-                ttsEnabled = false;
+            if (hasTTS && window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = () => {
+                    console.log('Voices loaded');
+                };
             }
         }
 
@@ -632,10 +635,8 @@
                 recognition.continuous = false;
                 recognition.interimResults = true;
                 recognition.lang = 'fr-FR';
-                recognition.maxAlternatives = 1;
 
                 recognition.onstart = function() {
-                    console.log('🎤 Speech recognition started');
                     isListening = true;
                     document.getElementById('voiceInputBtn').classList.add('listening');
                     document.getElementById('voiceStatus').textContent = '🎤 Écoute en cours...';
@@ -646,9 +647,8 @@
                     let finalTranscript = '';
 
                     for (let i = event.resultIndex; i < event.results.length; i++) {
-                        const transcript = event.results[i][0].transcript;
                         if (event.results[i].isFinal) {
-                            finalTranscript += transcript;
+                            finalTranscript += event.results[i][0].transcript;
                         }
                     }
 
@@ -659,7 +659,6 @@
                 };
 
                 recognition.onerror = function(event) {
-                    console.error('Speech recognition error:', event.error);
                     document.getElementById('voiceStatus').textContent = `❌ Erreur: ${event.error}`;
                     stopListening();
                 };
@@ -669,7 +668,6 @@
                 };
 
             } catch (error) {
-                console.error('Error initializing speech recognition:', error);
                 document.getElementById('voiceInputBtn').disabled = true;
             }
         }
@@ -687,9 +685,13 @@
                 }
             });
 
+            // STABLE INPUT RESIZING - NO LAYOUT JUMPS
             input.addEventListener('input', function() {
+                // Reset height to calculate new height
                 this.style.height = 'auto';
-                this.style.height = this.scrollHeight + 'px';
+                // Set new height but prevent excessive growth
+                const newHeight = Math.min(this.scrollHeight, 120);
+                this.style.height = newHeight + 'px';
             });
         }
 
@@ -717,189 +719,30 @@
 
             if (ttsEnabled) {
                 btn.classList.remove('disabled');
-                btn.textContent = '🔊 Auto';
+                btn.textContent = '🔊 TTS';
             } else {
                 btn.classList.add('disabled');
                 btn.textContent = '🔇 Off';
-                stopTTS();
+                if (window.speechSynthesis) window.speechSynthesis.cancel();
             }
-
-            console.log('TTS toggled:', ttsEnabled);
         }
 
-        function stopTTS() {
-            if (window.speechSynthesis) {
-                window.speechSynthesis.cancel();
-            }
-
-            currentTTSQueue = [];
-            currentUtterance = null;
-            isSpeaking = false;
-
-            // Remove speaking class from all buttons
-            document.querySelectorAll('.message-tts-btn.speaking, .tts-toggle.speaking').forEach(btn => {
-                btn.classList.remove('speaking');
-            });
-
-            // Hide progress bar
-            document.getElementById('ttsProgress').style.display = 'none';
-
-            currentMessageElement = null;
-        }
-
-        // Enhanced TTS with chunking for long messages
-        function speakTextChunked(text, messageElement = null) {
+        function speakText(text) {
             if (!ttsEnabled || !window.speechSynthesis) return;
 
-            // Stop any current speech
-            stopTTS();
+            window.speechSynthesis.cancel();
 
-            console.log('🔊 Starting chunked TTS for text length:', text.length);
+            const cleanText = text.replace(/[🔵🎯📚🔄💬🎯]/g, '').replace(/\*\*(.*?)\*\*/g, '$1');
 
-            // Clean and prepare text
-            const cleanText = text
-                .replace(/[🔵🎯📚🔄💬🎯]/g, '')
-                .replace(/\*\*(.*?)\*\*/g, '$1')
-                .replace(/\*(.*?)\*/g, '$1')
-                .replace(/`(.*?)`/g, '$1')
-                .replace(/\n/g, ' ')
-                .trim();
+            currentSpeech = new SpeechSynthesisUtterance(cleanText);
+            currentSpeech.lang = 'fr-FR';
+            currentSpeech.rate = 0.9;
 
-            if (cleanText.length === 0) return;
-
-            // Split text into chunks (sentences or by punctuation)
-            const chunks = splitTextIntoChunks(cleanText, 200); // 200 char chunks
-            console.log('Split into', chunks.length, 'chunks');
-
-            if (chunks.length === 0) return;
-
-            currentTTSQueue = chunks;
-            currentMessageElement = messageElement;
-            isSpeaking = true;
-
-            // Show progress
-            const progressBar = document.getElementById('ttsProgress');
-            const progressFill = document.getElementById('ttsProgressBar');
-            progressBar.style.display = 'block';
-            progressFill.style.width = '0%';
-
-            // Update button states
-            const globalBtn = document.getElementById('ttsToggle');
-            globalBtn.classList.add('speaking');
-
-            if (messageElement) {
-                const btn = messageElement.querySelector('.message-tts-btn');
-                if (btn) btn.classList.add('speaking');
-            }
-
-            // Start speaking chunks
-            speakNextChunk(0);
-        }
-
-        function splitTextIntoChunks(text, maxLength) {
-            const sentences = text.split(/(?<=[.!?])\s+/);
-            const chunks = [];
-            let currentChunk = '';
-
-            for (const sentence of sentences) {
-                if (currentChunk.length + sentence.length <= maxLength) {
-                    currentChunk += (currentChunk ? ' ' : '') + sentence;
-                } else {
-                    if (currentChunk) {
-                        chunks.push(currentChunk);
-                    }
-
-                    // If sentence is still too long, split by commas or length
-                    if (sentence.length > maxLength) {
-                        const subChunks = sentence.match(new RegExp(`.{1,${maxLength}}(?:\s|$)`, 'g'));
-                        chunks.push(...subChunks);
-                        currentChunk = '';
-                    } else {
-                        currentChunk = sentence;
-                    }
-                }
-            }
-
-            if (currentChunk) {
-                chunks.push(currentChunk);
-            }
-
-            return chunks.filter(chunk => chunk.trim().length > 0);
-        }
-
-        function speakNextChunk(chunkIndex) {
-            if (!isSpeaking || chunkIndex >= currentTTSQueue.length || !ttsEnabled) {
-                // Finished speaking all chunks
-                finishTTS();
-                return;
-            }
-
-            const chunk = currentTTSQueue[chunkIndex];
-            const progress = ((chunkIndex + 1) / currentTTSQueue.length) * 100;
-
-            console.log(`Speaking chunk ${chunkIndex + 1}/${currentTTSQueue.length}:`, chunk.substring(0, 50) + '...');
-
-            // Update progress bar
-            document.getElementById('ttsProgressBar').style.width = progress + '%';
-
-            currentUtterance = new SpeechSynthesisUtterance(chunk);
-            currentUtterance.lang = 'fr-FR';
-            currentUtterance.rate = 0.9;
-            currentUtterance.pitch = 1.0;
-            currentUtterance.volume = 0.8;
-
-            // Get French voice if available
             const voices = window.speechSynthesis.getVoices();
             const frenchVoice = voices.find(v => v.lang.startsWith('fr'));
-            if (frenchVoice) {
-                currentUtterance.voice = frenchVoice;
-            }
+            if (frenchVoice) currentSpeech.voice = frenchVoice;
 
-            currentUtterance.onend = function() {
-                console.log('Chunk finished, continuing to next...');
-                // Small delay between chunks to avoid browser issues
-                setTimeout(() => {
-                    speakNextChunk(chunkIndex + 1);
-                }, 100);
-            };
-
-            currentUtterance.onerror = function(event) {
-                console.error('TTS error for chunk', chunkIndex, ':', event.error);
-                // Try to continue with next chunk despite error
-                setTimeout(() => {
-                    speakNextChunk(chunkIndex + 1);
-                }, 500);
-            };
-
-            // Prevent browser from stopping synthesis
-            currentUtterance.onstart = function() {
-                console.log('Chunk started speaking');
-            };
-
-            try {
-                window.speechSynthesis.speak(currentUtterance);
-            } catch (error) {
-                console.error('Error speaking chunk:', error);
-                setTimeout(() => speakNextChunk(chunkIndex + 1), 500);
-            }
-        }
-
-        function finishTTS() {
-            console.log('🔊 TTS completed');
-            isSpeaking = false;
-            currentUtterance = null;
-            currentTTSQueue = [];
-
-            // Update UI
-            document.getElementById('ttsProgress').style.display = 'none';
-            document.getElementById('ttsToggle').classList.remove('speaking');
-
-            if (currentMessageElement) {
-                const btn = currentMessageElement.querySelector('.message-tts-btn');
-                if (btn) btn.classList.remove('speaking');
-            }
-
-            currentMessageElement = null;
+            window.speechSynthesis.speak(currentSpeech);
         }
 
         async function checkServerStatus() {
@@ -923,6 +766,7 @@
             }
         }
 
+        // STABLE MESSAGE ADDITION - NO LAYOUT JUMPS
         function addMessage(content, sender, isTyping = false) {
             const messagesList = document.getElementById('messagesList');
 
@@ -959,11 +803,11 @@
                     const ttsBtn = document.createElement('button');
                     ttsBtn.className = 'message-tts-btn';
                     ttsBtn.innerHTML = '🔊';
-                    ttsBtn.title = 'Lire ce message (complet)';
+                    ttsBtn.title = 'Lire ce message';
                     ttsBtn.onclick = function(e) {
                         e.preventDefault();
                         e.stopPropagation();
-                        speakTextChunked(content, messageDiv);
+                        speakText(content);
                     };
 
                     const stopBtn = document.createElement('button');
@@ -973,16 +817,16 @@
                     stopBtn.onclick = function(e) {
                         e.preventDefault();
                         e.stopPropagation();
-                        stopTTS();
+                        if (window.speechSynthesis) window.speechSynthesis.cancel();
                     };
 
                     ttsContainer.appendChild(ttsBtn);
                     ttsContainer.appendChild(stopBtn);
                     contentDiv.appendChild(ttsContainer);
 
-                    // Auto-speak after delay if enabled
+                    // Auto-speak if enabled
                     if (ttsEnabled) {
-                        setTimeout(() => speakTextChunked(content, messageDiv), 1200);
+                        setTimeout(() => speakText(content), 800);
                     }
                 }
             }
@@ -991,12 +835,11 @@
             messageDiv.appendChild(contentDiv);
             messagesList.appendChild(messageDiv);
 
-            setTimeout(() => {
-                document.getElementById('chatContainer').scrollTo({
-                    top: document.getElementById('chatContainer').scrollHeight,
-                    behavior: 'smooth'
-                });
-            }, 100);
+            // SMOOTH SCROLL WITHOUT JUMPS
+            requestAnimationFrame(() => {
+                const container = document.getElementById('chatContainer');
+                container.scrollTop = container.scrollHeight;
+            });
         }
 
         function formatMessage(content) {
@@ -1016,19 +859,17 @@
         async function sendMessage(message) {
             if (!message.trim() || isLoading) return;
 
-            console.log('📤 Sending message:', message);
             isLoading = true;
             document.getElementById('sendButton').disabled = true;
             document.getElementById('voiceInputBtn').disabled = true;
 
-            // Stop any current speech
-            stopTTS();
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
 
             addMessage(message, 'user');
 
             const input = document.getElementById('messageInput');
             input.value = '';
-            input.style.height = 'auto';
+            input.style.height = 'auto'; // Reset input height
 
             document.getElementById('modelStatus').textContent = 'Génération...';
             addMessage('', 'assistant', true);
@@ -1055,7 +896,6 @@
                     document.getElementById('modelStatus').textContent = 'Erreur ❌';
                 }
             } catch (error) {
-                console.error('Send message error:', error);
                 removeTypingMessage();
                 document.getElementById('modelStatus').textContent = 'Erreur ❌';
                 addMessage(`❌ Erreur de connexion: ${error.message}`, 'assistant');
