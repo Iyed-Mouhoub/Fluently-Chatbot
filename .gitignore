@@ -1,7 +1,5 @@
-/pdfs
-/course_materials
-.env
-__pycache__
-/venv
-/chroma_db
-french_cours.index
+*.index
+*.db
+course_materials/
+chroma/
+pdfs
